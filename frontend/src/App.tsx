@@ -632,14 +632,17 @@ export default function App() {
     setSettings((current) =>
       current.imageCheckpoint ? current : { ...current, imageCheckpoint: fallback.name },
     );
-    const referencePreferred = config?.reference_checkpoint || config?.image_checkpoint;
-    const referenceFallback =
-      imageCheckpoints.find((item) => item.name === referencePreferred) ?? fallback;
-    setSettings((current) =>
-      current.referenceCheckpoint
-        ? current
-        : { ...current, referenceCheckpoint: referenceFallback.name },
-    );
+    // The reference page has its own checkpoint default; only fill it once the
+    // server config is known so a stale health-only guess cannot win.
+    if (config?.reference_checkpoint) {
+      const referenceFallback =
+        imageCheckpoints.find((item) => item.name === config.reference_checkpoint) ?? fallback;
+      setSettings((current) =>
+        current.referenceCheckpoint
+          ? current
+          : { ...current, referenceCheckpoint: referenceFallback.name },
+      );
+    }
   }, [health, config]);
 
   const referenceCheckpoint = settings.referenceCheckpoint ?? null;
