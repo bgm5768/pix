@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   CancelResponse,
+  ComicPageInfo,
   DeleteOutputResponse,
   GenerateRequest,
   GenerateResponse,
@@ -165,6 +166,23 @@ export const api = {
     request<StudioStatus>("/api/studio/start", {
       method: "POST",
     }),
+  getComicPages: () => request<{ items: ComicPageInfo[] }>("/api/comic/pages"),
+  buildComicPage: (payload: {
+    layout: string;
+    width: number;
+    height: number;
+    title: string;
+    panels: Array<{ path: string; text: string; position: string }>;
+  }) =>
+    request<ComicPageInfo>("/api/comic/page", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteComicPage: (pageId: string) =>
+    request<{ id: string; deleted: number }>(
+      `/api/comic/page/${encodeURIComponent(pageId)}`,
+      { method: "DELETE" },
+    ),
   uploadReference: async (file: File): Promise<ReferenceAsset> => {    const form = new FormData();
     form.append("file", file, file.name);
     let response: Response;

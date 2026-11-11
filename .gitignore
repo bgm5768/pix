@@ -21,6 +21,7 @@ outputs/cutouts/*
 outputs/crops/*
 outputs/candidates/*
 outputs/references/*
+outputs/comic_pages/*
 !outputs/**/.gitkeep
 logs/*
 !logs/.gitkeep

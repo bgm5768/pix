@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import { ComicCuts } from "./components/ComicCuts";
+import { ComicPagePanel } from "./components/ComicPagePanel";
 import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
 import { BackendOverride } from "./components/BackendOverride";
@@ -1696,6 +1697,9 @@ export default function App() {
               onFinished={() => void refreshOutputs("reference")}
               disabled={generating.reference || referenceItems.length === 0}
             />
+          )}
+          {(page === "reference" || page === "image") && (
+            <ComicPagePanel kind={page} cuts={outputsByPage[page]} />
           )}
           <SettingsPanel
             kind={page}

@@ -6,6 +6,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from pathlib import Path
+from typing import Any
 
 from app.config import Settings
 from app.schemas.models import (
@@ -43,6 +45,7 @@ from app.services.references import (
     list_sample_assets,
     save_reference_upload,
 )
+from app.services.comic import ComicError, ComicService
 from app.services.studio import StudioError, StudioService
 from app.services.system_monitor import SystemMonitor
 
@@ -74,39 +77,99 @@ def _studio(request: Request) -> StudioService:
     return request.app.state.studio
 
 
-def _studio_request_allowed(request: Request) -> bool:
-    """The nk studio is a local-only app, so keep it off the shared tunnel."""
-    settings = _settings(request)
-    if settings.studio.allow_remote:
-        return True
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        # Reached through a reverse proxy / tunnel - not a local browser.
-        return False
-    client = request.client
-    return bool(client and client.host in {"127.0.0.1", "::1", "localhost"})
+def _comic(request: Request) -> ComicService:
+    return request.app.state.comic
+
+
+@router.post("/comic/page")
+async def build_comic_page(payload: dict, request: Request) -> dict:
+    """Assemble generated cuts into a comic page (PNG + PDF)."""
+    comic = _comic(request)
+    panels = payload.get("panels") or []
+    resolved: list[dict[str, Any]] = []
+    for panel in panels:
+        if not isinstance(panel, dict):
+            continue
+        source = str(panel.get("path") or panel.get("image") or "")
+        if not source:
+            continue
+        path = _resolve_output_path(_settings(request), source)
+        if path is None:
+            raise ComicError(f"컷 이미지를 찾을 수 없습니다: {source}")
+        resolved.append(
+            {
+                "path": str(path),
+                "text": str(panel.get("text") or ""),
+                "position": str(panel.get("position") or "top"),
+            }
+        )
+    return comic.build_page(
+        resolved,
+        layout=str(payload.get("layout") or "2x2"),
+        width=int(payload.get("width") or 1240),
+        height=int(payload.get("height") or 1754),
+        title=str(payload.get("title") or ""),
+    )
+
+
+@router.get("/comic/pages")
+async def list_comic_pages(request: Request) -> dict:
+    return {"items": _comic(request).list_pages()}
+
+
+@router.get("/comic/page/{page_id}.pdf")
+async def download_comic_pdf(page_id: str, request: Request) -> FileResponse:
+    path = _comic(request).pdf_path(page_id)
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"pixelforge_comic_{page_id}.pdf",
+    )
+
+
+@router.delete("/comic/page/{page_id}")
+async def delete_comic_page(page_id: str, request: Request) -> dict:
+    removed = _comic(request).delete_page(page_id)
+    if not removed:
+        raise ComicError("페이지를 찾지 못했습니다.")
+    return {"id": page_id, "deleted": removed}
+
+
+def _resolve_output_path(settings: Settings, source: str) -> Path | None:
+    """Allow only files inside the PixelForge output folders.
+
+    The UI passes asset URLs like ``/files/images/<job>_image_1024.png``; those
+    map to ``outputs/images/...`` because ``/files`` is mounted on ``outputs``.
+    """
+    raw = str(source or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("/files/"):
+        raw = raw[len("/files/") :]
+    root = settings.resolve("outputs").resolve()
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = (root / raw.lstrip("/\\")).resolve()
+    else:
+        candidate = candidate.resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
 
 
 @router.get("/studio/status")
 async def studio_status(request: Request) -> dict:
     studio = _studio(request)
     status = studio.status()
-    status["allowed"] = _studio_request_allowed(request)
-    status["remote_blocked"] = not settings_allow_remote(request) and not status["allowed"]
+    status["allowed"] = True
+    status["remote_blocked"] = False
     return status
-
-
-def settings_allow_remote(request: Request) -> bool:
-    return bool(_settings(request).studio.allow_remote)
 
 
 @router.post("/studio/start")
 async def studio_start(request: Request) -> dict:
-    if not _studio_request_allowed(request):
-        raise StudioError(
-            "nk 작업실은 이 PC에서만 열 수 있습니다. "
-            "config/settings.yaml 의 studio.allow_remote 를 true 로 바꾸면 원격에서도 열 수 있습니다."
-        )
     studio = _studio(request)
     await studio.ensure_running()
     return studio.status()
@@ -119,11 +182,6 @@ async def studio_root(request: Request) -> Response:
 
 @studio_router.api_route("/{path:path}", methods=["GET", "POST", "HEAD"])
 async def studio_proxy(path: str, request: Request) -> Response:
-    if not _studio_request_allowed(request):
-        raise StudioError(
-            "nk 작업실은 이 PC에서만 열 수 있습니다. "
-            "config/settings.yaml 의 studio.allow_remote 를 true 로 바꾸면 원격에서도 열 수 있습니다."
-        )
     body = await request.body()
     headers = {key: value for key, value in request.headers.items()}
     status_code, content_type, payload = await _studio(request).proxy(

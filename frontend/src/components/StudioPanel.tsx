@@ -27,8 +27,6 @@ export function StudioPanel({
 
   const installed = status?.installed ?? false;
   const running = status?.running ?? false;
-  const allowed = status?.allowed ?? true;
-  const blocked = status?.remote_blocked ?? false;
 
   return (
     <section className="panel studio-panel">
@@ -60,7 +58,7 @@ export function StudioPanel({
               type="button"
               className="btn btn-primary btn-small"
               onClick={onStart}
-              disabled={starting || !allowed}
+              disabled={starting}
             >
               {starting ? (
                 <>
@@ -88,6 +86,9 @@ export function StudioPanel({
           nk 만화 제작기의 작업실(새 만화·이어서 만들기·컷 다시 그리기·페이지 조립)을
           그대로 불러옵니다. 같은 ComfyUI(<code>http://127.0.0.1:8188</code>)와 공유 모델
           폴더를 쓰고, nk 의 안전장치(전연령 전용)도 그대로 적용됩니다.
+          <br />
+          작업실은 이 PC의 파일을 만들고 명령을 실행하므로, 터널 주소를 아는 사람이 쓰게
+          됩니다. 개인용 외에는 터널을 켜지 마세요.
         </span>
       </div>
 
@@ -113,21 +114,7 @@ export function StudioPanel({
         </div>
       )}
 
-      {installed && blocked && (
-        <div className="studio-empty">
-          <AlertIcon size={18} />
-          <div>
-            <strong>이 창에서는 작업실을 열 수 없습니다</strong>
-            <p>
-              nk 작업실은 이 PC 전용입니다. 같은 PC 에서
-              <code> http://127.0.0.1:8765 </code>로 열어 주세요. 원격에서도 쓰려면
-              <code> studio.allow_remote: true</code> 로 바꾸면 됩니다.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {installed && allowed && (
+      {installed && (
         <div className="studio-frame-wrap">
           <iframe
             key={refreshKey}

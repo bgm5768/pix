@@ -466,13 +466,24 @@ export interface AppConfig {
   max_pending: number;
 }
 
+export interface ComicPageInfo {
+  id: string;
+  created_at?: string;
+  layout: string;
+  width: number;
+  height: number;
+  title: string;
+  panel_count: number;
+  image_url: string;
+  pdf_url: string;
+}
+
 export interface StudioStatus {
   installed: boolean;
   kit_path: string;
   running: boolean;
   port: number;
   url: string;
-  allow_remote: boolean;
   python: string;
   allowed?: boolean;
   remote_blocked?: boolean;

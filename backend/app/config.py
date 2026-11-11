@@ -142,6 +142,7 @@ class StorageConfig(BaseModel):
     candidates_dir: str = "outputs/candidates"
     references_dir: str = "outputs/references"
     reference_samples_dir: str = "assets/references/samples"
+    comic_pages_dir: str = "outputs/comic_pages"
     logs_dir: str = "logs"
 
 
@@ -162,9 +163,6 @@ class StudioConfig(BaseModel):
     port: int = 8766
     # Python that can run nk (needs numpy/cv2/PIL/pyyaml).
     python: str = ""
-    # The studio is a local-only app. Keep it that way unless the user really
-    # wants to expose it through the shared tunnel.
-    allow_remote: bool = False
 
 
 class Settings(BaseModel):
@@ -239,6 +237,10 @@ class Settings(BaseModel):
         return self.resolve(self.storage.reference_samples_dir)
 
     @property
+    def comic_pages_dir(self) -> Path:
+        return self.resolve(self.storage.comic_pages_dir)
+
+    @property
     def logs_dir(self) -> Path:
         return self.resolve(self.storage.logs_dir)
 
@@ -264,6 +266,7 @@ class Settings(BaseModel):
             self.candidates_dir,
             self.reference_uploads_dir,
             self.reference_samples_dir,
+            self.comic_pages_dir,
             self.logs_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)

@@ -103,7 +103,6 @@ class StudioService:
             "running": self.is_running(),
             "port": self.port,
             "url": "/studio/",
-            "allow_remote": bool(self.settings.studio.allow_remote),
             "python": self.python_executable(),
         }
 

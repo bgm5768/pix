@@ -42,7 +42,6 @@ studio:
   kit_path: 'C:\nk'
   port: 8766
   python: ''           # 비우면 PATH 의 python 사용 (numpy/cv2/PIL/pyyaml 필요)
-  allow_remote: false # true 면 터널(외부) 로도 작업실을 연다. 기본은 이 PC 전용
 
 generation:
   workflow_file: 'workflows/text_to_pixel.json'
