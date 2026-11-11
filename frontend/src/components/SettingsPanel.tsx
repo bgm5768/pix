@@ -10,7 +10,7 @@ import type {
   PostProcessMode,
   ResizeFilter,
 } from "../types";
-import { DiceIcon, DownloadIcon, PaletteIcon, RefreshIcon, StopIcon } from "./Icons";
+import { DiceIcon, DownloadIcon, PaletteIcon, RefreshIcon, SparkIcon, StopIcon } from "./Icons";
 
 interface SettingsPanelProps {
   kind: PageKind;
@@ -111,6 +111,11 @@ function ModelInfo({ role, model }: { role: string; model?: ModelFile }) {
         {model.recommended_strength !== null && (
           <span className="model-tag">권장 ×{model.recommended_strength.toFixed(2)}</span>
         )}
+        {model.recommended_steps !== null && model.recommended_cfg !== null && (
+          <span className="model-tag">
+            권장 {model.recommended_steps} steps · CFG {model.recommended_cfg.toFixed(1)}
+          </span>
+        )}
       </div>
       {model.features.length > 0 && (
         <div className="model-features">
@@ -157,6 +162,19 @@ export function SettingsPanel({
       : settings.lora;
   const checkpointFile = allCheckpoints.find((item) => item.name === selectedCheckpoint);
   const loraFile = selectedLora ? allLoras.find((item) => item.name === selectedLora) : undefined;
+  const recommendedSteps = checkpointFile?.recommended_steps ?? 28;
+  const recommendedCfg = checkpointFile?.recommended_cfg ?? 6;
+  const recommendedLoraStrength = loraFile?.recommended_strength ?? 0.8;
+  const recommendationsApplied =
+    settings.steps === recommendedSteps &&
+    Math.abs(settings.cfg - recommendedCfg) < 0.001 &&
+    Math.abs(settings.loraStrength - recommendedLoraStrength) < 0.001;
+  const applyRecommended = () =>
+    onChange({
+      steps: recommendedSteps,
+      cfg: recommendedCfg,
+      loraStrength: recommendedLoraStrength,
+    });
   const checkpointReady = checkpointOptions.some((item) => item.name === selectedCheckpoint);
   const loraReady = selectedLora === "" || loraOptions.some((item) => item.name === selectedLora);
   const modelReady = checkpointReady && loraReady;
@@ -413,6 +431,12 @@ export function SettingsPanel({
                             권장 프리픽스 · {item.prompt_tip}
                           </span>
                         )}
+                        {item.recommended_steps !== null && item.recommended_cfg !== null && (
+                          <span className="model-tag">
+                            권장 {item.recommended_steps} steps · CFG{" "}
+                            {item.recommended_cfg.toFixed(1)}
+                          </span>
+                        )}
                       </div>
                       {item.features.length > 0 && (
                         <div className="model-features">
@@ -511,6 +535,26 @@ export function SettingsPanel({
         <p className="setting-note">같은 Seed와 설정이면 같은 결과를 재현할 수 있습니다.</p>
       </div>
 
+      <div className="sampling-head">
+        <div className="sampling-title">
+          <span className="field-label">SAMPLING</span>
+          <small className="sampling-model" title={selectedCheckpoint || "기본 모델"}>
+            {checkpointFile?.description || selectedCheckpoint || "기본 모델"}
+          </small>
+        </div>
+        <button
+          type="button"
+          className={`optimal-button ${recommendationsApplied ? "is-applied" : ""}`}
+          onClick={applyRecommended}
+          title={`이 모델 기준 STEPS ${recommendedSteps} · CFG ${recommendedCfg.toFixed(1)}${
+            loraFile ? ` · LoRA ×${recommendedLoraStrength.toFixed(2)}` : ""
+          } 적용`}
+        >
+          <SparkIcon size={12} />
+          {recommendationsApplied ? "최적값 사용 중" : "모델 최적값"}
+        </button>
+      </div>
+
       <div className="range-grid">
         <RangeField
           label="STEPS"
@@ -537,6 +581,17 @@ export function SettingsPanel({
           onChange={(value) => onChange({ loraStrength: value })}
         />
       </div>
+      <p className="setting-note sampling-note">
+        {checkpointFile?.name ? `${checkpointFile.name} 권장값` : "선택한 모델 권장값"}:{" "}
+        <strong>{recommendedSteps} steps</strong> · <strong>CFG {recommendedCfg.toFixed(1)}</strong>
+        {loraFile && (
+          <>
+            {" "}
+            · <strong>LoRA ×{recommendedLoraStrength.toFixed(2)}</strong>
+          </>
+        )}
+        {!loraFile && " · LoRA 미사용"}
+      </p>
 
       {!isImage && (
         <>

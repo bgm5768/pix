@@ -14,7 +14,7 @@ from app.schemas.models import ModelCatalogResponse, ModelDownloadItem
 from app.services.comfy_client import ComfyClient
 from app.services.errors import ModelDownloadError
 from app.services.model_catalog import resolve_model_path
-from app.services.model_notes import lora_triggers, note_for
+from app.services.model_notes import checkpoint_recommendation, lora_triggers, note_for
 
 logger = logging.getLogger("pixelforge.downloads")
 
@@ -279,6 +279,10 @@ class ModelDownloadManager:
                 else 0.0
             )
         note = note_for(entry.filename)
+        recommended_steps: int | None = None
+        recommended_cfg: float | None = None
+        if entry.kind == "checkpoint":
+            recommended_steps, recommended_cfg = checkpoint_recommendation(entry.filename)
         return ModelDownloadItem(
             id=entry.id,
             label=entry.label,
@@ -289,6 +293,8 @@ class ModelDownloadManager:
             trigger=note.trigger if note else None,
             prompt_tip=note.prompt_tip if note else None,
             recommended_strength=note.recommended_strength if note else None,
+            recommended_steps=recommended_steps,
+            recommended_cfg=recommended_cfg,
             base_model=note.base_model if note else "",
             nsfw=note.nsfw if note else False,
             vram_hint=note.vram_hint if note else "",

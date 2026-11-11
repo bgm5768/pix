@@ -1474,6 +1474,77 @@ select:focus-visible {
   background: rgba(89, 227, 255, 0.055);
 }
 
+.sampling-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sampling-title {
+  min-width: 0;
+}
+
+.sampling-title .field-label {
+  margin-bottom: 3px;
+}
+
+.sampling-model {
+  display: block;
+  max-width: 215px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted-deep);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optimal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 10px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: rgba(125, 255, 178, 0.06);
+  border: 1px solid rgba(125, 255, 178, 0.28);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.optimal-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(125, 255, 178, 0.5);
+  background: rgba(125, 255, 178, 0.11);
+}
+
+.optimal-button.is-applied {
+  color: var(--accent-2);
+  border-color: rgba(89, 227, 255, 0.32);
+  background: rgba(89, 227, 255, 0.07);
+}
+
+.optimal-button.is-applied:hover {
+  border-color: rgba(89, 227, 255, 0.5);
+  background: rgba(89, 227, 255, 0.12);
+}
+
+.sampling-note {
+  margin-top: -6px;
+}
+
+.sampling-note strong {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
 .range-grid {
   display: grid;
   gap: 14px;
@@ -3123,6 +3194,20 @@ input[type="range"]::-moz-range-thumb {
 
   .btn-cancel {
     flex: 1;
+  }
+
+  .sampling-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sampling-model {
+    max-width: 100%;
+  }
+
+  .optimal-button {
+    justify-content: center;
   }
 
   .result-actions .btn {

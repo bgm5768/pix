@@ -20,7 +20,11 @@ class ModelNote:
     features: tuple[str, ...] = ()
     trigger: str | None = None
     prompt_tip: str | None = None
+    # LoRA slider strength and checkpoint sampler settings shown by the
+    # "optimal values" button in the settings panel.
     recommended_strength: float | None = None
+    recommended_steps: int | None = None
+    recommended_cfg: float | None = None
     base_model: str = "SDXL 1.0"
     nsfw: bool = False
     vram_hint: str = "12GB VRAM"
@@ -32,24 +36,32 @@ NOTES: dict[str, ModelNote] = {
         kind="checkpoint",
         description="SDXL 1.0 공식 베이스 · 호환성이 가장 좋은 범용 모델",
         features=("범용", "SDXL 표준", "프롬프트 충실도", "풍경/인물"),
+        recommended_steps=30,
+        recommended_cfg=7.0,
     ),
     "noobai-xl-v1.0.safetensors": ModelNote(
         kind="checkpoint",
         description="NoobAI-XL 1.0 · Danbooru 태그 기반 애니/일러스트 특화 모델",
         features=("애니", "일러스트", "캐릭터", "태그 프롬프트"),
         prompt_tip="masterpiece, best quality, 캐릭터 태그",
+        recommended_steps=28,
+        recommended_cfg=5.5,
         nsfw=True,
     ),
     "lustifysdxlnsfwsfw_v20.safetensors": ModelNote(
         kind="checkpoint",
         description="LUSTIFY! v2.0 · 인물 피부와 조명에 강한 무검열 포토리얼 모델",
         features=("포토리얼", "NSFW/SFW", "인물", "상업적 사용 가능"),
+        recommended_steps=30,
+        recommended_cfg=5.5,
         nsfw=True,
     ),
     "sdxl1.0_pixelartdiffusionxl_spriteshaper.safetensors": ModelNote(
         kind="checkpoint",
         description="PixelArtDiffusionXL · SpriteShaper 픽셀아트/스프라이트 특화",
         features=("픽셀", "스프라이트", "게임 에셋", "제한 팔레트"),
+        recommended_steps=30,
+        recommended_cfg=7.0,
     ),
     # --- installed LoRAs ------------------------------------------------------
     "pixel-art-xl.safetensors": ModelNote(
@@ -91,24 +103,32 @@ NOTES: dict[str, ModelNote] = {
         description="Pony Diffusion V6 XL · 애니/만화·furry에 강한 무검열 SDXL 모델",
         features=("애니/만화", "furry", "강한 명암", "태그 프롬프트"),
         prompt_tip="score_9, score_8_up, score_7_up",
+        recommended_steps=30,
+        recommended_cfg=7.0,
         nsfw=True,
     ),
     "cyberrealisticxlplay_v10.0_fp16.safetensors": ModelNote(
         kind="checkpoint",
         description="CyberRealistic XL v10.0 · 인물 피부/조명에 강한 무검열 포토리얼 모델",
         features=("포토리얼", "인물", "피부 질감", "NSFW/SFW"),
+        recommended_steps=30,
+        recommended_cfg=5.0,
         nsfw=True,
     ),
     "epicrealismxl_v7finaldestination.safetensors": ModelNote(
         kind="checkpoint",
         description="epiCRealism XL v7 · 시네마틱 실사와 자연광 인물에 강한 모델",
         features=("포토리얼", "시네마틱", "자연광", "인물"),
+        recommended_steps=30,
+        recommended_cfg=5.5,
         nsfw=True,
     ),
     "realvisxl_v5.0_fp16.safetensors": ModelNote(
         kind="checkpoint",
         description="RealVisXL V5.0 · 선명한 실사 결과물을 위한 범용 포토리얼 모델",
         features=("포토리얼", "범용", "풍경/인물", "선명한 디테일"),
+        recommended_steps=30,
+        recommended_cfg=5.0,
         nsfw=True,
     ),
     # --- style / quality LoRAs ------------------------------------------------
@@ -158,6 +178,33 @@ def note_for(filename: str | None) -> ModelNote | None:
     if not filename:
         return None
     return NOTES.get(_normalize(filename))
+
+
+def checkpoint_recommendation(filename: str | None) -> tuple[int, float]:
+    """Return (steps, CFG) that work well for a checkpoint.
+
+    Known files use the curated values above.  Files installed later still get
+    a sensible family-based fallback instead of the generic global defaults.
+    """
+    note = note_for(filename)
+    if (
+        note is not None
+        and note.recommended_steps is not None
+        and note.recommended_cfg is not None
+    ):
+        return note.recommended_steps, note.recommended_cfg
+
+    lowered = _normalize(filename or "")
+    if any(token in lowered for token in ("pony", "noob", "illustrious", "animagine")):
+        return 28, 5.5
+    if any(
+        token in lowered
+        for token in ("real", "photo", "cyber", "epic", "lustify", "juggernaut")
+    ):
+        return 30, 5.0
+    if any(token in lowered for token in ("pixel", "sprite", "dot")):
+        return 30, 7.0
+    return 28, 6.0
 
 
 def lora_triggers() -> dict[str, str]:

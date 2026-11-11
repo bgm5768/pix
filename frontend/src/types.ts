@@ -163,6 +163,8 @@ export interface ModelFile {
   trigger: string | null;
   prompt_tip: string | null;
   recommended_strength: number | null;
+  recommended_steps: number | null;
+  recommended_cfg: number | null;
   base_model: string;
   nsfw: boolean;
   vram_hint: string;
@@ -178,6 +180,8 @@ export interface ModelDownloadItem {
   trigger: string | null;
   prompt_tip: string | null;
   recommended_strength: number | null;
+  recommended_steps: number | null;
+  recommended_cfg: number | null;
   base_model: string;
   nsfw: boolean;
   vram_hint: string;

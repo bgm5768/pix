@@ -23,6 +23,8 @@
 - **모델 선택/다운로드**: 설정 화면에서 체크포인트·LoRA를 드롭다운으로 바로 교체하고,
   SDXL 호환 모델을 내려받아 설치할 수 있음
 - **모델 특징 표시**: 선택한 체크포인트/LoRA의 설명·특징·NSFW 여부·트리거·권장 강도를 표시
+- **모델별 최적값**: STEPS/CFG/LoRA STRENGTH 옆의 `모델 최적값` 버튼으로 현재 체크포인트와
+  LoRA에 맞는 권장 샘플링 값(예: Pony 30 steps·CFG 7.0, LUSTIFY! 30 steps·CFG 5.5)을 한 번에 적용
 - **무검열 모델 라인업**: LUSTIFY!, Pony Diffusion, CyberRealistic, epiCRealism, RealVisXL과
   디테일/필름/셀카/NSFW 슬라이더 LoRA 제공
 - **비교**: AI 원본 / 배경 제거 / 자동 크롭 / 최종 도트를 나란히 표시
@@ -275,6 +277,26 @@ HTTPS 페이지에서 그대로 동작합니다. 픽셀 페이지도 Pages UI에
 > **모델 특징 표시**: 체크포인트/LoRA를 선택하면 설정 패널에 설명, 특징 태그, NSFW 여부,
 > 권장 프리픽스/트리거, 권장 강도가 표시됩니다. 모델 받기 목록에서도 같은 정보를 미리
 > 확인할 수 있습니다.
+
+> **모델별 최적값**: 설정 패널의 `모델 최적값` 버튼은 현재 체크포인트와 LoRA에 맞춰
+> STEPS / CFG / LoRA STRENGTH를 한 번에 맞춥니다. 같은 값이면 버튼이 `최적값 사용 중`으로
+> 표시됩니다. 알려진 모델의 권장값은 아래와 같습니다.
+>
+> | 체크포인트 | STEPS | CFG |
+> |---|---|---|
+> | SDXL 1.0 Base | 30 | 7.0 |
+> | Pony Diffusion V6 XL | 30 | 7.0 |
+> | NoobAI-XL v1.0 | 28 | 5.5 |
+> | LUSTIFY! v2.0 | 30 | 5.5 |
+> | CyberRealistic XL v10.0 | 30 | 5.0 |
+> | epiCRealism XL v7 | 30 | 5.5 |
+> | RealVisXL V5.0 | 30 | 5.0 |
+> | PixelArtDiffusionXL SpriteShaper | 30 | 7.0 |
+>
+> LoRA 강도는 pixel-art-xl 0.80, PixelArtRedmond Lite64 0.80, Pixel Art DoRA 0.85,
+> Pixel Art LoRA SDXL 0.70, `sexy` 1.20, extremely detailed 1.00, raw 1.00,
+> FilmGrain/Selfie/Analog 0.80을 사용합니다. 목록에 없는 모델은 이름 계열
+> (Pony/NoobAI, 포토리얼, 픽셀)에 따라 28~30 steps / CFG 5.0~7.0을 자동 제안합니다.
 
 `config/settings.yaml`의 `generation.checkpoint` / `generation.lora`는 화면에서 아무것도
 선택하지 않았을 때 사용하는 기본값입니다. 이미지 페이지는 `generation.image_checkpoint` /

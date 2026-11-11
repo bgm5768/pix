@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.config import Settings
 from app.schemas.models import ModelCategory, ModelFile
-from app.services.model_notes import note_for
+from app.services.model_notes import checkpoint_recommendation, note_for
 
 # ComfyUI can list every file in the checkpoints folder, including 3D,
 # segmentation and video models.  These keywords flag files that cannot be
@@ -93,6 +93,10 @@ def model_files(settings: Settings, kind: str, names: set[str]) -> list[ModelFil
     for name in sorted(names):
         normalized = _normalize(name)
         note = note_for(name)
+        recommended_steps: int | None = None
+        recommended_cfg: float | None = None
+        if kind == "checkpoint":
+            recommended_steps, recommended_cfg = checkpoint_recommendation(name)
         items.append(
             ModelFile(
                 name=name,
@@ -106,6 +110,8 @@ def model_files(settings: Settings, kind: str, names: set[str]) -> list[ModelFil
                 recommended_strength=(
                     note.recommended_strength if note else None
                 ),
+                recommended_steps=recommended_steps,
+                recommended_cfg=recommended_cfg,
                 base_model=note.base_model if note else "",
                 nsfw=note.nsfw if note else False,
                 vram_hint=note.vram_hint if note else "",

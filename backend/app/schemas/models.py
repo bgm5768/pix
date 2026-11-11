@@ -179,6 +179,8 @@ class ModelFile(BaseModel):
     trigger: str | None = None
     prompt_tip: str | None = None
     recommended_strength: float | None = None
+    recommended_steps: int | None = None
+    recommended_cfg: float | None = None
     base_model: str = ""
     nsfw: bool = False
     vram_hint: str = ""
@@ -204,6 +206,8 @@ class ModelDownloadItem(BaseModel):
     trigger: str | None = None
     prompt_tip: str | None = None
     recommended_strength: float | None = None
+    recommended_steps: int | None = None
+    recommended_cfg: float | None = None
     base_model: str = ""
     nsfw: bool = False
     vram_hint: str = ""
