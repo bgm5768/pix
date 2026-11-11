@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AppSettings,
   AssetMode,
@@ -186,6 +186,35 @@ export function SettingsPanel({
       cfg: recommendedCfg,
       loraStrength: recommendedLoraStrength,
     });
+
+  // Keep the sampling sliders in sync with the selected model stack.  The
+  // first resolved key only primes the ref so settings saved in localStorage
+  // are not overwritten on page load; every later change (checkpoint, LoRA,
+  // or page switch) applies the new model's optimal values automatically.
+  const appliedModelKey = useRef<string | null>(null);
+  const modelKey = `${kind}:${selectedCheckpoint}:${selectedLora}`;
+  useEffect(() => {
+    if (!models) return;
+    if (appliedModelKey.current === null) {
+      appliedModelKey.current = modelKey;
+      return;
+    }
+    if (appliedModelKey.current === modelKey) return;
+    appliedModelKey.current = modelKey;
+    onChange({
+      steps: recommendedSteps,
+      cfg: recommendedCfg,
+      loraStrength: recommendedLoraStrength,
+    });
+  }, [
+    modelKey,
+    models,
+    recommendedSteps,
+    recommendedCfg,
+    recommendedLoraStrength,
+    onChange,
+  ]);
+
   const checkpointReady = checkpointOptions.some((item) => item.name === selectedCheckpoint);
   const loraReady = selectedLora === "" || loraOptions.some((item) => item.name === selectedLora);
   const modelReady = checkpointReady && loraReady;
@@ -648,6 +677,7 @@ export function SettingsPanel({
         />
       </div>
       <p className="setting-note sampling-note">
+        모델 변경 시 자동 적용 ·{" "}
         {checkpointFile?.name ? `${checkpointFile.name} 권장값` : "선택한 모델 권장값"}:{" "}
         <strong>{recommendedSteps} steps</strong> · <strong>CFG {recommendedCfg.toFixed(1)}</strong>
         {loraFile && (
