@@ -86,6 +86,13 @@ class GenerationConfig(BaseModel):
     image_lora: str = ""
     image_default_candidates: int = 1
     image_negative_prompt: str = ""
+    # Reference page: IP-Adapter Plus on top of an SDXL checkpoint.
+    reference_checkpoint: str = "sd_xl_base_1.0.safetensors"
+    reference_lora: str = ""
+    reference_default_size: int = 1024
+    reference_default_strength: float = 0.85
+    reference_default_focus: str = "appearance"
+    reference_max_references: int = 5
     transparent_default: bool = True
     # Local background segmentation (rembg/u2net, CPU). Padding gives u2net
     # enough context to segment pixel-art icons that fill the frame.
@@ -133,6 +140,8 @@ class StorageConfig(BaseModel):
     cutouts_dir: str = "outputs/cutouts"
     crops_dir: str = "outputs/crops"
     candidates_dir: str = "outputs/candidates"
+    references_dir: str = "outputs/references"
+    reference_samples_dir: str = "assets/references/samples"
     logs_dir: str = "logs"
 
 
@@ -202,6 +211,18 @@ class Settings(BaseModel):
         return self.resolve(self.storage.candidates_dir)
 
     @property
+    def references_dir(self) -> Path:
+        return self.resolve(self.storage.references_dir)
+
+    @property
+    def reference_uploads_dir(self) -> Path:
+        return self.references_dir / "uploads"
+
+    @property
+    def reference_samples_dir(self) -> Path:
+        return self.resolve(self.storage.reference_samples_dir)
+
+    @property
     def logs_dir(self) -> Path:
         return self.resolve(self.storage.logs_dir)
 
@@ -225,6 +246,8 @@ class Settings(BaseModel):
             self.cutouts_dir,
             self.crops_dir,
             self.candidates_dir,
+            self.reference_uploads_dir,
+            self.reference_samples_dir,
             self.logs_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)

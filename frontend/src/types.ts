@@ -11,9 +11,78 @@ export type PostProcessMode = "quantize" | "nearest" | "posterize";
 export type OutputSize = 16 | 32 | 64 | 96 | 128;
 export type AssetMode = "icon" | "character" | "object" | "tile";
 export type ResizeFilter = "nearest" | "box" | "lanczos";
-export type PageKind = "pixel" | "image";
+export type PageKind = "pixel" | "image" | "reference";
 export type ImageSize = 512 | 768 | 1024;
 export type ModelCategory = "pixel" | "image" | "other";
+export type ReferenceFocus = "appearance" | "face" | "style" | "pose" | "composition";
+
+export interface ReferenceInput {
+  asset_id: string;
+  strength: number;
+  focus: ReferenceFocus;
+}
+
+export interface ReferenceAnalysis {
+  width: number;
+  height: number;
+  orientation: "portrait" | "landscape" | "square";
+  brightness: number;
+  saturation: number;
+  colorfulness: number;
+  dominant_colors: string[];
+  subject_hint: string;
+  summary: string;
+}
+
+export interface ReferenceAsset {
+  id: string;
+  name: string;
+  url: string;
+  source: "upload" | "sample";
+  width: number;
+  height: number;
+  size_bytes: number;
+  hint: string;
+  analysis: ReferenceAnalysis;
+}
+
+export interface ReferenceUsage {
+  asset_id: string;
+  name: string;
+  url: string;
+  focus: ReferenceFocus;
+  strength: number;
+  analysis_summary: string;
+}
+
+export interface ReferenceItem extends ReferenceAsset {
+  focus: ReferenceFocus;
+  strength: number;
+}
+
+export interface ReferenceCapabilities {
+  available: boolean;
+  node_installed: boolean;
+  advanced_node_installed: boolean;
+  plus_model: boolean;
+  plus_face_model: boolean;
+  clip_vision_model: boolean;
+  ipadapter_models: string[];
+  clip_vision_models: string[];
+  checkpoint: string | null;
+  checkpoint_compatible: boolean | null;
+  checkpoint_note: string;
+  guidance: string;
+  install_hint: string;
+  instantid_note: string;
+  pulid_note: string;
+  max_references: number;
+  presets: string[];
+}
+
+export interface ReferenceSamplesResponse {
+  items: ReferenceAsset[];
+}
 
 export interface GenerateRequest {
   prompt: string;
@@ -34,6 +103,7 @@ export interface GenerateRequest {
   kind: PageKind;
   image_size: ImageSize;
   translate_prompt?: boolean;
+  reference_images?: ReferenceInput[];
 }
 
 export interface QualityCheck {
@@ -85,6 +155,7 @@ export interface ResultInfo {
   candidate_index: number;
   candidate_score: number;
   panel_suspected: boolean;
+  references?: ReferenceUsage[];
 }
 
 export interface JobView {
@@ -284,6 +355,7 @@ export interface OutputItem {
   candidate_index: number;
   candidate_score: number;
   panel_suspected: boolean;
+  references?: ReferenceUsage[];
 }
 
 export interface OutputsResponse {
@@ -316,6 +388,12 @@ export interface AppConfig {
   image_lora: string;
   default_image_candidates: number;
   default_image_negative_prompt: string;
+  reference_checkpoint: string;
+  reference_lora: string;
+  reference_default_size: ImageSize;
+  reference_default_strength: number;
+  reference_default_focus: ReferenceFocus;
+  reference_max_references: number;
   default_negative_prompt: string;
   translation_enabled?: boolean;
   translation_model?: string;
@@ -338,6 +416,11 @@ export interface AppSettings {
   imageSize: ImageSize;
   imageCheckpoint: string | null;
   imageLora: string | null;
+  referenceSize: ImageSize;
+  referenceCheckpoint: string | null;
+  referenceLora: string | null;
+  referenceStrength: number;
+  referenceFocus: ReferenceFocus;
   autoTranslate: boolean;
 }
 

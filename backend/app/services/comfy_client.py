@@ -156,6 +156,41 @@ class ComfyClient:
             )
         return response.content
 
+    async def upload_image(self, filename: str, content: bytes) -> str:
+        """Upload a reference image to ComfyUI's input folder.
+
+        Returns the name LoadImage should use. Each job uses a unique filename,
+        so repeated generations never overwrite an in-flight prompt's input.
+        """
+        try:
+            response = await self._client.post(
+                "/upload/image",
+                files={"image": (filename, content, "image/png")},
+                data={"overwrite": "true", "type": "input"},
+            )
+        except httpx.ConnectError as exc:
+            raise ComfyConnectionError(
+                f"ComfyUI에 연결할 수 없습니다. ({self.base_url})",
+                detail=str(exc),
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ComfyConnectionError(
+                "참고 이미지를 ComfyUI로 업로드하지 못했습니다.",
+                detail=str(exc),
+            ) from exc
+        if response.status_code >= 400:
+            raise ComfyExecutionError(
+                "ComfyUI가 참고 이미지 업로드를 거부했습니다.",
+                detail=response.text[:500],
+            )
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
+        name = str(data.get("name") or filename)
+        subfolder = str(data.get("subfolder") or "").strip("/")
+        return f"{subfolder}/{name}" if subfolder else name
+
     @staticmethod
     def extract_execution_error(entry: dict[str, Any]) -> tuple[str, str | None]:
         """Return (message, code) from a ComfyUI history entry."""

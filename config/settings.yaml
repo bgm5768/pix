@@ -68,6 +68,13 @@ generation:
   image_negative_prompt: >-
     blurry, low quality, jpeg artifacts, watermark, text, signature,
     deformed, bad anatomy, extra limbs, cropped, out of frame
+  # 이미지to이미지(레퍼런스) 페이지: SDXL + IP-Adapter Plus.
+  reference_checkpoint: 'sd_xl_base_1.0.safetensors'
+  reference_lora: ''
+  reference_default_size: 1024
+  reference_default_strength: 0.85
+  reference_default_focus: 'appearance'
+  reference_max_references: 5
   transparent_default: true
   # 로컬 배경 분리(rembg u2net, CPU). 프레임을 채운 픽셀아트도 인식하도록
   # 가장자리 색으로 패딩한 뒤 분리합니다. 실패하면 내장 색상 키로 대체됩니다.
@@ -120,6 +127,8 @@ storage:
   cutouts_dir: 'outputs/cutouts'
   crops_dir: 'outputs/crops'
   candidates_dir: 'outputs/candidates'
+  references_dir: 'outputs/references'
+  reference_samples_dir: 'assets/references/samples'
   logs_dir: 'logs'
 
 translation:

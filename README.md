@@ -3,11 +3,17 @@
 로컬 ComfyUI + SDXL로 텍스트 프롬프트에서 **픽셀아트 스프라이트**와 **일반 이미지**를 만드는 Windows 전용 앱입니다.
 외부 이미지 생성 API를 사용하지 않으며, 모든 생성은 이 PC의 GPU에서 실행됩니다.
 
-- **페이지**: 상단의 `픽셀 생성기` / `이미지 생성기` 탭으로 전환
-- **이미지 생성**: SDXL 원본 PNG를 512 / 768 / 1024px로 저장 (픽셀 후처리 없음, 기본 무검열 LUSTIFY! v2.0)
-- **페이지별 모델**: 픽셀 페이지에는 pixel/sprite 계열, 이미지 페이지에는 SDXL 일반 모델만 표시
+- **페이지**: 상단의 `픽셀 생성기` / `이미지 생성기` / `이미지to이미지 느낌` 탭으로 전환
+- **이미지to이미지(레퍼런스)**: 참고 이미지를 업로드하거나 제공된 샘플 중에서 고르고,
+  이미지마다 초점(외형·얼굴·화풍·포즈·구도)과 강도를 지정해 새 이미지에 반영
+  (IP-Adapter Plus + CLIP Vision ViT-H, SDXL/NoobAI 계열 체크포인트 호환)
+- **참고 이미지 분석**: 업로드/샘플 이미지의 방향·밝기·채도·주요 색·피사체 위치를
+  자동 분석해 카드에 표시하고 작업 메타데이터에 함께 저장
+- **호환성 안내**: IP-Adapter 노드/모델이 없거나 SDXL 계열이 아닌 체크포인트를 고르면
+  무엇을 설치·선택해야 하는지 화면과 오류 메시지로 안내
+- **페이지별 모델**: 픽셀 페이지에는 pixel/sprite 계열, 이미지·레퍼런스 페이지에는 SDXL 일반 모델만 표시
 - **이미지 LoRA**: `sexy` 슬라이더 LoRA 선택 시 트리거 단어를 이미지 프롬프트에 자동 추가
-- **한국어 → 영어 번역**: 이미지 페이지의 한국어 프롬프트를 오프라인 ONNX 모델
+- **한국어 → 영어 번역**: 이미지/레퍼런스 페이지의 한국어 프롬프트를 오프라인 ONNX 모델
   (`opus-mt-ko-en`)로 자동 번역해 SDXL에 전달 (기본 켜짐, 영어 입력은 그대로 사용)
 - **다운로드/삭제**: 결과 패널과 갤러리 카드에서 PNG 다운로드 및 결과 삭제
 - **실시간 자원 표시**: 상단 스트립에서 GPU 사용률, VRAM, 시스템 RAM, 대기열 수를 2.5초마다 갱신
@@ -80,8 +86,8 @@ comfyui:
    - 브라우저 자동 열기 (`http://127.0.0.1:8765`)
 3. ComfyUI가 꺼져 있으면 기존 ComfyUI 설치를 자동으로 기동합니다.
    (자동 기동이 싫으면 `config/settings.yaml`의 `comfyui.auto_start: false`)
-4. 상단에서 **픽셀 생성기** 또는 **이미지 생성기** 페이지를 고릅니다.
-5. 프롬프트를 입력하고 **도트 생성** 또는 **이미지 생성**을 누릅니다.
+4. 상단에서 **픽셀 생성기**, **이미지 생성기**, **이미지to이미지 느낌** 페이지를 고릅니다.
+5. 프롬프트를 입력하고 **도트 생성**, **이미지 생성**, **레퍼런스 생성** 중 하나를 누릅니다.
 
 > `start.bat`은 이미 백엔드가 실행 중이면 중복 실행하지 않고 브라우저만 엽니다.
 
@@ -303,13 +309,43 @@ HTTPS 페이지에서 그대로 동작합니다. 픽셀 페이지도 Pages UI에
 
 `config/settings.yaml`의 `generation.checkpoint` / `generation.lora`는 화면에서 아무것도
 선택하지 않았을 때 사용하는 기본값입니다. 이미지 페이지는 `generation.image_checkpoint` /
-`generation.image_lora` / `generation.default_image_size` / `generation.image_default_candidates`를
-사용합니다.
+`generation.image_lora` / `generation.default_image_size` / `generation.image_default_candidates`를,
+레퍼런스 페이지는 `generation.reference_checkpoint` / `generation.reference_lora` /
+`generation.reference_default_size` / `generation.reference_default_strength` /
+`generation.reference_default_focus` / `generation.reference_max_references`를 사용합니다.
 
 > 다운로드 모델의 라이선스는 각 Hugging Face 저장소(모델 카드)를 확인하세요.
 > 이 프로젝트는 로컬 추론만 하며 모델 파일을 재배포하지 않습니다.
 
-### 3.5 배경 분리 모델 (rembg)
+### 3.5 레퍼런스 이미지용 IP-Adapter Plus
+
+이미지to이미지(레퍼런스) 페이지는 **IP-Adapter Plus**로 참고 이미지의 조건을 SDXL에 주입합니다.
+커스텀 노드와 모델 3종이 모두 있어야 동작합니다.
+
+| 파일 | 크기 | 저장 위치 | 출처 |
+|---|---|---|---|
+| `ip-adapter-plus_sdxl_vit-h.safetensors` | 약 808MB | `models\ipadapter\` | [h94/IP-Adapter](https://huggingface.co/h94/IP-Adapter) `sdxl_models/` |
+| `ip-adapter-plus-face_sdxl_vit-h.safetensors` | 약 808MB | `models\ipadapter\` | 위와 동일 (얼굴 전용) |
+| `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors` | 약 2.35GB | `models\clip_vision\` | 위와 동일 `models/image_encoder/model.safetensors` |
+
+커스텀 노드:
+
+```bat
+cd /d "%LOCALAPPDATA%\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI\custom_nodes"
+git clone --depth 1 https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
+```
+
+설치 후 **ComfyUI를 반드시 재시작**해야 노드가 등록됩니다.
+레퍼런스 페이지 상단의 상태 배너에 `NODE / PLUS / FACE / CLIP-VISION / SDXL` 항목이
+있으며, 하나라도 비어 있으면 무엇을 설치해야 하는지 안내 문구가 표시됩니다.
+
+- `PLUS` 만 있어도 외형·화풍·구도 참고가 동작합니다.
+- `FACE`는 얼굴 초점을 선택했을 때 사용합니다. 없으면 일반 PLUS로 대체하고 안내합니다.
+- 지원 체크포인트: SDXL 계열(SDXL 1.0, NoobAI-XL, Pony, Illustrious, LUSTIFY! 등).
+  Flux/SD3/Hunyuan 등 비-SDXL 모델은 호환성 안내와 함께 생성이 차단됩니다.
+- 애니메 모델(NoobAI/Pony)에 실사 참고 사진을 넣을 때는 강도 0.4~0.7을 권장합니다.
+
+### 3.6 배경 분리 모델 (rembg)
 
 투명 배경을 켜면 로컬 `rembg`가 u2net 모델을 사용합니다.
 첫 실행 시 자동으로 다운로드됩니다(약 176MB).
@@ -344,7 +380,7 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 
 ## 4. 사용 방법
 
-상단의 두 탭은 각각 독립된 프롬프트·설정·결과·갤러리를 가집니다. 페이지를 바꿔도
+상단의 세 탭은 각각 독립된 프롬프트·설정·결과·갤러리를 가집니다. 페이지를 바꿔도
 진행 중인 작업과 선택한 모델은 유지됩니다.
 
 ### 4.1 픽셀 생성기
@@ -402,7 +438,46 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 즉 SDXL이 만든 원본을 그대로 보존하며, 후처리 단계 없이 저장합니다. 픽셀 결과와 이미지
 결과는 서로 다른 폴더(`outputs/pixel_art`, `outputs/images`)에 저장되어 섞이지 않습니다.
 
-### 4.3 다운로드 · 삭제
+### 4.3 이미지to이미지 느낌 (레퍼런스)
+
+1. 상단에서 **이미지to이미지 느낌** 탭을 누릅니다.
+2. **참고 이미지** 패널에서 참고할 이미지를 고릅니다.
+   - 드롭존을 클릭하거나 끌어다 놓아 업로드(PNG/JPG/WEBP, 최대 15MB)
+   - 또는 **샘플 이미지에서 선택**에서 제공된 샘플(인물 초상 / 동물 야생 / 화풍·수채화 /
+     장면·구도)을 고릅니다. 최대 5장까지 가능합니다.
+   - 업로드·샘플 이미지는 방향·밝기·채도·주요 색·피사체 위치를 자동 분석해 카드에 표시합니다.
+3. 카드마다 **FOCUS**와 **STRENGTH**를 지정합니다.
+   | 초점 | IP-Adapter 가중 방식 | 설명 |
+   |---|---|---|
+   | 외형 · 캐릭터 | `linear` | 생김새·색감·질감 반영 |
+   | 얼굴 · 표정 | `linear` + PLUS FACE 모델 | 얼굴 특징 강조 |
+   | 화풍 · 그림체 | `style transfer` | 스타일 레이어만 반영 |
+   | 포즈 · 자세 | `composition` | 구도 레이어 반영 (정확한 관절 포즈는 ControlNet 필요) |
+   | 구도 · 배치 | `composition precise` | 카메라 구도·피사체 배치 반영 |
+   강도는 0.0~1.5 (기본 0.85)이며 0이면 해당 참고는 적용되지 않습니다.
+4. **교체**로 참고 이미지를 바꾸고, 휴지통 아이콘으로 제거할 수 있습니다.
+5. **POSITIVE PROMPT**에 새 장면을 입력합니다. 프롬프트와 참고 이미지는 항상 함께
+   적용되므로, 참고 이미지는 "무엇을"을, 프롬프트는 "어떻게"를 결정합니다.
+   한국어 프롬프트는 자동으로 영어로 번역됩니다.
+6. **레퍼런스 생성**을 누릅니다. 결과는 SDXL 원본 PNG로 저장되며, 결과 패널에
+   적용된 참고 이미지(초점·강도·분석 요약)가 함께 표시됩니다.
+
+> **얼굴 동일성 유지**: IP-Adapter는 "얼굴처럼 보이는" 정도의 유사성을 만들 뿐
+> 동일 인물을 보장하지 않습니다. 얼굴을 고정해야 하는 작업은 InstantID 또는 PuLID를
+> 별도로 검토해야 합니다(아래 4.4).
+
+### 4.4 얼굴 동일성 유지 (InstantID · PuLID 검토)
+
+| 방식 | 원리 | 필요한 것 | 참고 |
+|---|---|---|---|
+| IP-Adapter Plus (현재 구현) | CLIP Vision 임베딩을 교차 어텐션에 주입 | 위 3.5의 노드/모델 | 얼굴 "유사성", 여러 참고 동시 사용 가능 |
+| InstantID | InsightFace 임베딩 + SDXL ControlNet | `ComfyUI_InstantID`, `instantid-faceid.bin`, `controlnet-instantid`, insightface | 단일 인물 초상, 얼굴 고정력이 가장 강함 |
+| PuLID | UNet에 ID 임베딩 직접 주입 | `ComfyUI_PuLID`, EVA-CLIP, antelopev2 | InstantID보다 가볍지만 얼굴 고정력은 약간 낮음 |
+
+이번 구현에는 InstantID/PuLID를 포함하지 않았습니다. 레퍼런스 패널 하단의
+`얼굴 동일성(InstantID · PuLID) 검토` 설명에서 요약을 볼 수 있습니다.
+
+### 4.5 다운로드 · 삭제
 
 - **다운로드**: 결과 패널의 **PNG 저장**, 또는 갤러리 카드의 다운로드 아이콘을 누릅니다.
   픽셀은 실제 크기 PNG(`pixelforge_<job>_<size>px.png`), 이미지는 선택한 해상도의
@@ -442,9 +517,10 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 ## 5. 동작 구조
 
 ```
-[React UI · 픽셀 생성기 / 이미지 생성기]
+[React UI · 픽셀 생성기 / 이미지 생성기 / 이미지to이미지 느낌]
    │ 이미지 + 한국어: POST /api/translate → 영어 미리보기 (ONNX, CPU)
-   │ POST /api/generate { kind: "pixel" | "image", prompt: 영어, translate_prompt: true }
+   │ 레퍼런스: POST /api/references/upload → 참고 이미지 분석(방향/밝기/색/피사체)
+   │ POST /api/generate { kind: "pixel" | "image" | "reference", prompt: 영어, translate_prompt: true }
    ▼
 [FastAPI JobManager] ── 번역(방어적) ── 1개 활성 + 최대 2개 대기 ──▶ [ComfyUI HTTP/WebSocket]
    │                                                   │
@@ -457,6 +533,7 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
    │                                                   └─ SaveImage
    │                                        (pixel: 후보 1..N, seed = base_seed + index)
    │                                        (image: 후보 1, 번역된 영어 프롬프트)
+   │                                        (reference: 후보 1, IP-Adapter 조건 주입)
    ▼
    ├─ kind=pixel → [Pillow/NumPy 후처리]
    │    ├─ 패딩 rembg u2net 배경 분리 + 테두리 색상 키
@@ -468,7 +545,13 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
    │    ├─ 자동 검증 (중앙/크기/단일/카드 패널/잘림/알파/출력 크기/NN 경계)
    │    └─ nearest-neighbor 미리보기 (512px)
    │
-   └─ kind=image → 후처리 없이 원본 PNG + 축소 미리보기 저장
+   ├─ kind=image → 후처리 없이 원본 PNG + 축소 미리보기 저장
+   │
+   └─ kind=reference → [IP-Adapter Plus 조건 주입]
+        ├─ 참고 이미지별 LoadImage + IPAdapterAdvanced 체인
+        ├─ 초점별 가중 방식 (linear / style transfer / composition)
+        ├─ 얼굴 초점은 PLUS FACE 모델 사용 (미설치 시 PLUS로 대체 + 안내)
+        └─ 후처리 없이 원본 PNG + 축소 미리보기 저장
    ▼
 outputs/
    ├─ originals/<job>_original.png           (선택된 AI 원본 512×512 RGB)
@@ -477,14 +560,17 @@ outputs/
    ├─ crops/<job>_crop.png                   (픽셀: 피사체 자동 크롭)
    ├─ pixel_art/<job>_pixel_<size>.png       (픽셀: 최종 RGBA/RGB)
    ├─ previews/<job>_preview_<size>.png      (픽셀: nearest 확대)
-   ├─ images/<job>_image_<size>.png          (이미지: SDXL 원본 PNG)
-   ├─ image_previews/<job>_image_preview_<size>.png (이미지: 갤러리용 축소본)
+   ├─ images/<job>_image_<size>.png          (이미지/레퍼런스: SDXL 원본 PNG)
+   ├─ image_previews/<job>_image_preview_<size>.png (이미지/레퍼런스: 갤러리용 축소본)
+   ├─ references/uploads/<up_id>.png         (업로드한 참고 이미지 원본)
    └─ metadata/<job>.json                    (프롬프트/모델/시드/설정/후보 점수/검증/결과)
 ```
 
 - 원본과 최종 결과를 **별도 파일**로 보존합니다.
 - 픽셀 결과는 투명 모드에서 binary alpha를 쓰는 RGBA PNG, 불투명 모드에서 RGB PNG입니다.
 - 이미지 결과는 항상 RGB PNG이며, `kind: "image"`와 `image_size`가 메타데이터에 기록됩니다.
+- 레퍼런스 결과도 `kind: "reference"`로 기록되며, 적용된 참고 이미지(초점·강도·분석 요약)가
+  `references` 배열과 `result.references`에 남습니다.
 - 이미지 프롬프트에 한글이 있으면 `JobManager`가 ONNX 번역 모델로 영어로 바꾼 뒤
   SDXL에 전달합니다. 원문은 `prompt_original`, 실제 사용 문장은 `prompt_used`,
   번역 여부는 `prompt_translated`로 메타데이터와 작업 응답에 남습니다.
@@ -499,21 +585,25 @@ outputs/
 
 | Method | Path | 설명 |
 |---|---|---|
-| POST | `/api/generate` | 생성 작업 제출 (`kind`로 픽셀/이미지 선택) |
+| POST | `/api/generate` | 생성 작업 제출 (`kind`로 픽셀/이미지/레퍼런스 선택) |
 | GET | `/api/jobs?limit=20&kind=image` | 최근 작업 목록 (실행 중 작업 우선, 재시작 후에도 유지) |
 | GET | `/api/jobs/{job_id}` | 작업 상태/진행률/결과 조회 |
 | POST | `/api/jobs/{job_id}/cancel` | 작업 취소 |
-| GET | `/api/outputs?limit=30&kind=pixel` | 최근 결과 목록 (`kind=pixel` 기본, `kind=image`) |
+| GET | `/api/outputs?limit=30&kind=pixel` | 최근 결과 목록 (`kind=pixel` 기본, `kind=image`, `kind=reference`) |
 | DELETE | `/api/outputs/{job_id}` | 결과 파일과 메타데이터 삭제 (진행 중 작업은 409) |
 | POST | `/api/translate` | 한국어 프롬프트를 영어로 번역 (오프라인 ONNX, CPU) |
+| GET | `/api/references/samples` | 제공된 참고 샘플 목록 |
+| POST | `/api/references/upload` | 참고 이미지 업로드 (multipart `file`) → 분석 결과 포함 |
+| GET | `/api/references/capabilities?checkpoint=...` | IP-Adapter 설치/호환 상태와 안내 문구 |
 | GET | `/api/system` | GPU 사용률/VRAM/온도/전력, RAM, 대기열 상태 (2.5초 폴링용) |
 | GET | `/api/health` | 백엔드/ComfyUI/GPU/RAM/모델/큐 상태 |
 | GET | `/api/models/catalog` | 다운로드 가능한 모델과 설치/진행 상태 |
 | POST | `/api/models/downloads/{id}` | 모델 다운로드 시작 |
 | POST | `/api/models/downloads/{id}/cancel` | 진행 중인 다운로드 취소 |
-| GET | `/api/config` | UI 기본 설정(픽셀/이미지 기본값 포함) |
-| GET | `/api/download/{job_id}?kind=pixel` | 결과 PNG 다운로드 (`kind=image`로 이미지 결과) |
+| GET | `/api/config` | UI 기본 설정(픽셀/이미지/레퍼런스 기본값 포함) |
+| GET | `/api/download/{job_id}?kind=pixel` | 결과 PNG 다운로드 (`kind=image`, `kind=reference`) |
 | GET | `/files/...` | 원본/픽셀/이미지/미리보기 정적 파일 |
+| GET | `/reference-samples/...` | 제공된 참고 샘플 정적 파일 |
 
 ### 생성 예시
 
@@ -567,6 +657,42 @@ $result.result.image_url      # /files/images/<job_id>_image_1024.png
 $result.result.download_url   # /api/download/<job_id>?kind=image
 ```
 
+레퍼런스(이미지to이미지) 생성:
+
+```powershell
+# 1) 참고 이미지 업로드 (multipart)
+$upload = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/references/upload" `
+  -Method Post -Form @{ file = Get-Item ".\my_reference.png" }
+$upload.id            # up_<hash>
+$upload.analysis.summary   # "세로형 · 중간 밝기 · 저채도 · 인물/캐릭터 추정 · #756f6d …"
+
+# 2) 참고 이미지 + 프롬프트로 생성
+$body = @{
+  kind = "reference"
+  prompt = "a woman in a red coat walking through a snowy city, cinematic lighting"
+  image_size = 1024
+  seed = 4242
+  steps = 28
+  cfg = 6.0
+  checkpoint = "sd_xl_base_1.0.safetensors"
+  lora = ""
+  reference_images = @(
+    @{ asset_id = $upload.id; strength = 0.85; focus = "face" },
+    @{ asset_id = "sample_style";  strength = 0.55; focus = "style" }
+  )
+} | ConvertTo-Json -Depth 5
+
+$job = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/generate" `
+  -Method Post -ContentType "application/json" -Body $body
+
+Invoke-RestMethod "http://127.0.0.1:8765/api/jobs/$($job.job_id)"
+```
+
+- `focus` 값: `appearance` / `face` / `style` / `pose` / `composition`
+- `asset_id`는 업로드 ID(`up_…`) 또는 제공 샘플 ID(`sample_portrait`, `sample_animal`,
+  `sample_style`, `sample_scene`)입니다.
+- `strength` 0이면 해당 참고 이미지는 생성에 반영되지 않습니다.
+
 한국어 프롬프트 번역:
 
 ```powershell
@@ -594,8 +720,9 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 `GET /api/jobs/{job_id}` 응답에는 다음 정보가 포함됩니다.
 
 - `request.kind`, `request.image_size`: 요청한 페이지 종류와 이미지 해상도
-- `result.kind`: `"pixel"` 또는 `"image"`
-- `result.image_url`, `result.image_preview_url`: 이미지 페이지 결과 경로
+- `result.kind`: `"pixel"`, `"image"` 또는 `"reference"`
+- `result.image_url`, `result.image_preview_url`: 이미지/레퍼런스 페이지 결과 경로
+- `result.references`: 레퍼런스 작업에 적용된 참고 이미지(초점·강도·분석 요약) 목록
 - `prompt_original`: 사용자가 입력한 원문
 - `prompt_used`: 실제 SDXL에 전달된 문장 (번역문 + LoRA 트리거)
 - `prompt_translated`: 이번 작업에서 번역이 적용됐는지 여부
@@ -625,6 +752,9 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 - `GET /api/models/catalog`에서 다운로드 가능한 모델·진행률·설치 여부를 확인합니다.
 - `GET /api/config`에는 `default_image_size`, `image_sizes`, `image_checkpoint`, `image_lora`,
   `default_image_candidates`, `default_image_negative_prompt`가 추가로 포함됩니다.
+- `GET /api/config`에는 레퍼런스 기본값(`reference_checkpoint`, `reference_lora`,
+  `reference_default_size`, `reference_default_strength`, `reference_default_focus`,
+  `reference_max_references`)도 포함됩니다.
 
 ### 오류 코드
 
@@ -634,6 +764,8 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 | 404 | `JOB_NOT_FOUND` | 없는 작업 ID |
 | 409 | `JOB_CONFLICT` | 이미 끝난 작업 취소 시도 |
 | 409 | `MODEL_DOWNLOAD_ERROR` | 모델 다운로드 시작/취소 불가 또는 서버 거부 |
+| 400 | `REFERENCE_ERROR` | 참고 이미지 업로드/선택 오류 (용량·형식·파일 없음) |
+| 409 | `REFERENCE_UNSUPPORTED` | IP-Adapter 미설치 또는 SDXL 계열이 아닌 체크포인트 |
 | 429 | `QUEUE_FULL` | 대기 작업 초과 (최대 2개) |
 | 507 | `VRAM_OOM` | GPU VRAM 부족 |
 | 502 | `COMFY_EXECUTION_ERROR` | ComfyUI 실행 오류 |
@@ -775,6 +907,31 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 - 얇은 무기/장식은 rembg가 배경으로 오인해 제거할 수 있음
 - UI 경고가 나오면 `postprocess`를 `quantize`로, `transparent`를 끄고 비교해 보세요.
 
+### 레퍼런스 페이지에서 "IP-Adapter Plus를 사용할 수 없습니다" (`REFERENCE_UNSUPPORTED`)
+
+- `NODE OK` 항목이 비어 있으면 `ComfyUI_IPAdapter_plus` 커스텀 노드가 없습니다.
+  `custom_nodes`에 클론하고 **ComfyUI를 재시작**하세요.
+- `PLUS OK`가 비어 있으면 `models\ipadapter\ip-adapter-plus_sdxl_vit-h.safetensors`가 없습니다.
+- `CLIP-VISION OK`가 비어 있으면
+  `models\clip_vision\CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`가 없습니다.
+- `FACE OK`가 비어 있으면 얼굴 초점이 일반 PLUS 모델로 대체되어 적용됩니다(안내 문구 표시).
+- `SDXL OK`가 `CHECK`이면 SDXL 계열이 아닌 체크포인트입니다. SDXL 1.0, NoobAI-XL,
+  Pony, Illustrious 등을 선택하세요.
+
+### 레퍼런스 결과가 참고 이미지와 전혀 다른 모습
+
+- 강도를 0.4~0.7로 낮추고 다시 시도합니다.
+- 애니메 모델(NoobAI/Pony)에 실사 참고 사진을 넣을수록 두드가 강해질 수 있습니다.
+- 사진 참고 → 애니메 모델 조합은 `style` 초점 대신 `appearance` 초점과 낮은 강도를 권장합니다.
+- 얼굴이 전혀 다른 사람처럼 나오면 IP-Adapter의 한계입니다. 동일 인물을 유지해야 하면
+  InstantID/PuLID 설치를 검토하세요(README 4.4).
+
+### 참고 업로드가 실패함 (`REFERENCE_ERROR`)
+
+- 15MB를 넘는 파일은 받을 수 없습니다. 이미지를 줄여 다시 올리세요.
+- PNG/JPG/WEBP/BMP/GIF/TIFF만 지원합니다.
+- 투명 PNG는 흰색 배경으로 합쳐서 저장하므로 투명 영역 색이 바뀌는 점에 유의하세요.
+
 ### npm/Python을 찾을 수 없음
 
 - Python: <https://www.python.org/downloads/> (설치 시 "Add python.exe to PATH")
@@ -815,7 +972,8 @@ pix/
 │        ├─ translator.py          # 한국어→영어 ONNX 번역, 청크/캐시/폴백
 │        ├─ model_catalog.py       # 체크포인트/LoRA 목록과 pixel/image/other 분류
 │        ├─ model_downloads.py     # 모델 다운로드/이어받기/취소
-│        ├─ outputs.py             # 픽셀/이미지 저장, 출력 목록, 다운로드/삭제
+│        ├─ outputs.py             # 픽셀/이미지/레퍼런스 저장, 출력 목록, 다운로드/삭제
+│        ├─ references.py          # 참고 이미지 업로드·분석, 샘플 목록, IP-Adapter 상태 확인
 │        └─ errors.py              # 사용자 친화적 오류 타입
 ├─ config/
 │  ├─ settings.yaml                # 실행 설정 (translation 포함)
@@ -824,13 +982,15 @@ pix/
 │  └─ translation/opus-mt-ko-en/   # 오프라인 번역 모델 (git 제외, start.bat이 다운로드)
 ├─ workflows/
 │  └─ text_to_pixel.json           # ComfyUI API 워크플로
+├─ assets/
+│  └─ references/samples/          # 제공 참고 샘플 이미지 + samples.json
 ├─ frontend/
 │  ├─ package.json
 │  ├─ .env.pages                    # Pages 빌드용 로컬 백엔드 주소
 │  ├─ vite.config.ts
 │  └─ src/
 │     ├─ App.tsx                    # 페이지 탭, 페이지별 프롬프트/설정/결과 상태
-│     ├─ components/                # Header/Prompt/Settings/Status/Result/Gallery + ResourceBar/JobList
+│     ├─ components/                # Header/Prompt/Settings/Status/Result/Gallery + Reference/ResourceBar/JobList
 │     ├─ api/client.ts
 │     ├─ types.ts
 │     └─ styles/global.css
@@ -845,8 +1005,9 @@ pix/
 │  ├─ crops/                       # 픽셀: 피사체 자동 크롭
 │  ├─ pixel_art/                   # 픽셀: 최종 PNG
 │  ├─ previews/                    # 픽셀: 확대 미리보기
-│  ├─ images/                      # 이미지: SDXL 원본 PNG
-│  ├─ image_previews/              # 이미지: 갤러리용 축소 미리보기
+│  ├─ images/                      # 이미지/레퍼런스: SDXL 원본 PNG
+│  ├─ image_previews/              # 이미지/레퍼런스: 갤러리용 축소 미리보기
+│  ├─ references/uploads/          # 레퍼런스: 업로드한 참고 이미지
 │  ├─ metadata/                    # 작업 메타데이터 JSON
 │  └─ jobs/                        # 작업 스냅샷 JSON (재시작 후 목록 복원용)
 └─ logs/
@@ -882,10 +1043,14 @@ pix/
   사용하고, 실제 인물·미성년자와 무관한 로컬 생성에만 사용하세요.
 - **이미지 페이지**: SDXL 원본을 그대로 저장하므로 픽셀 팔레트/배경 제거/자동 검증이 없습니다.
   후보도 1개만 생성되며, 결과는 `outputs/images`에 별도 보관됩니다.
-- **자동 번역**: 이미지 페이지에서만 동작하며, 한글이 포함된 문장만 번역합니다. 첫 번역은
+- **자동 번역**: 이미지/레퍼런스 페이지에서 동작하며, 한글이 포함된 문장만 번역합니다. 첫 번역은
   ONNX 모델을 메모리에 올리느라 1초 안팎 걸릴 수 있습니다. 번역 모델(약 115MB)은
   `start.bat`이 자동으로 받고, `config/settings.yaml`의 `translation.enabled: false`로
   끌 수 있습니다. 번역 품질은 Marian 모델 특성상 완벽하지 않으므로 미리보기를 확인하세요.
+- **레퍼런스(얼굴 동일성)**: IP-Adapter는 "얼굴처럼 보이는" 유사성만 보장하며 동일 인물을
+  유지하지 않습니다. 동일 인물이 필요한 작업은 InstantID/PuLID 설치가 필요합니다.
+- **레퍼런스(가중 방식)**: 포즈 초점은 구도 레이어를 참고하는 정도이며, 정확한 관절 포즈를
+  옮기려면 ControlNet OpenPose가 필요합니다.
 - **삭제**: 완료된 결과의 모든 파일과 메타데이터를 제거하며 되돌릴 수 없습니다.
   진행 중/대기 중 작업은 삭제할 수 없습니다.
 - **모델 분류**: 파일명 키워드(`pixel`, `sprite`, `dot`, `8bit`, `retro` 등)로 페이지를
@@ -900,3 +1065,7 @@ pix/
 - SDXL 1.0: <https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0>
 - pixel-art-xl: <https://huggingface.co/nerijs/pixel-art-xl>
 - rembg: <https://github.com/danielgatis/rembg>
+- IP-Adapter (모델): <https://huggingface.co/h94/IP-Adapter>
+- IP-Adapter Plus (노드): <https://github.com/cubiq/ComfyUI_IPAdapter_plus>
+- InstantID (얼굴 고정, 별도 검토): <https://github.com/cubiq/ComfyUI_InstantID>
+- PuLID (얼굴 고정, 별도 검토): <https://github.com/cubiq/ComfyUI_PuLID>

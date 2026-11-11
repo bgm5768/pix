@@ -4,16 +4,82 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 OutputSize = Literal[16, 32, 64, 96, 128]
 PostProcessMode = Literal["quantize", "nearest", "posterize"]
 AssetMode = Literal["icon", "character", "object", "tile"]
 ResizeFilter = Literal["nearest", "box", "lanczos"]
-GenerateKind = Literal["pixel", "image"]
+GenerateKind = Literal["pixel", "image", "reference"]
 ModelCategory = Literal["pixel", "image", "other"]
 ImageSize = Literal[512, 768, 1024]
+ReferenceFocus = Literal["appearance", "face", "style", "pose", "composition"]
+
+
+class ReferenceInput(BaseModel):
+    """A stored reference image plus its IP-Adapter strength/focus."""
+
+    asset_id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    strength: float = Field(default=0.85, ge=0.0, le=1.5)
+    focus: ReferenceFocus = "appearance"
+
+
+class ReferenceAnalysis(BaseModel):
+    width: int = 0
+    height: int = 0
+    orientation: Literal["portrait", "landscape", "square"] = "square"
+    brightness: float = 0.0
+    saturation: float = 0.0
+    colorfulness: float = 0.0
+    dominant_colors: list[str] = Field(default_factory=list)
+    subject_hint: str = ""
+    summary: str = ""
+
+
+class ReferenceAsset(BaseModel):
+    id: str
+    name: str
+    url: str
+    source: Literal["upload", "sample"] = "upload"
+    width: int = 0
+    height: int = 0
+    size_bytes: int = 0
+    hint: str = ""
+    analysis: ReferenceAnalysis = Field(default_factory=ReferenceAnalysis)
+
+
+class ReferenceUsage(BaseModel):
+    asset_id: str
+    name: str
+    url: str
+    focus: ReferenceFocus = "appearance"
+    strength: float = 0.85
+    analysis_summary: str = ""
+
+
+class ReferenceSamplesResponse(BaseModel):
+    items: list[ReferenceAsset] = Field(default_factory=list)
+
+
+class ReferenceCapabilities(BaseModel):
+    available: bool = False
+    node_installed: bool = False
+    advanced_node_installed: bool = False
+    plus_model: bool = False
+    plus_face_model: bool = False
+    clip_vision_model: bool = False
+    ipadapter_models: list[str] = Field(default_factory=list)
+    clip_vision_models: list[str] = Field(default_factory=list)
+    checkpoint: str | None = None
+    checkpoint_compatible: bool | None = None
+    checkpoint_note: str = ""
+    guidance: str = ""
+    install_hint: str = ""
+    instantid_note: str = ""
+    pulid_note: str = ""
+    max_references: int = 5
+    presets: list[str] = Field(default_factory=list)
 
 
 class GenerateRequest(BaseModel):
@@ -42,6 +108,9 @@ class GenerateRequest(BaseModel):
     # Image page: translate a Korean prompt into English before generation.
     # Pixel prompts keep using the deterministic prompt engine.
     translate_prompt: bool = True
+    # Reference page: one or more uploaded/sample images. The order is kept
+    # when chaining IP-Adapter nodes.
+    reference_images: list[ReferenceInput] = Field(default_factory=list, max_length=5)
 
     @field_validator("prompt")
     @classmethod
@@ -58,6 +127,17 @@ class GenerateRequest(BaseModel):
             return None
         value = value.strip()
         return value or None
+
+    @model_validator(mode="after")
+    def _validate_references(self) -> "GenerateRequest":
+        if self.kind != "reference":
+            return self
+        if not self.reference_images:
+            raise ValueError("레퍼런스 이미지를 1장 이상 선택해 주세요.")
+        asset_ids = [item.asset_id for item in self.reference_images]
+        if len(set(asset_ids)) != len(asset_ids):
+            raise ValueError("같은 참고 이미지를 여러 번 선택할 수 없습니다.")
+        return self
 
 
 class JobStatus(str, Enum):
@@ -119,6 +199,7 @@ class ResultInfo(BaseModel):
     candidate_index: int = 0
     candidate_score: float = 0.0
     panel_suspected: bool = False
+    references: list[ReferenceUsage] = Field(default_factory=list)
 
 
 class JobView(BaseModel):
@@ -301,6 +382,7 @@ class OutputItem(BaseModel):
     candidate_index: int = 0
     candidate_score: float = 0.0
     panel_suspected: bool = False
+    references: list[ReferenceUsage] = Field(default_factory=list)
 
 
 class OutputsResponse(BaseModel):

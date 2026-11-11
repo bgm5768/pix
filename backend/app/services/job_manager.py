@@ -24,6 +24,7 @@ from app.schemas.models import (
     JobListResponse,
     JobStatus,
     JobView,
+    ReferenceUsage,
     ResultInfo,
 )
 from app.services.comfy_client import ComfyClient
@@ -35,12 +36,14 @@ from app.services.errors import (
     ModelMissingError,
     PixelForgeError,
     QueueFullError,
+    ReferenceCompatibilityError,
     VramError,
 )
 from app.services.model_catalog import is_sdxl_compatible
 from app.services.model_downloads import lora_trigger
 from app.services.outputs import (
     image_result_info,
+    reference_result_info,
     result_info,
     save_candidate_original,
     save_image_result,
@@ -50,6 +53,11 @@ from app.services.outputs import (
 )
 from app.services.postprocess import PostProcessResult, postprocess_image
 from app.services.prompt_engine import build_prompt_plan_async
+from app.services.references import (
+    get_reference_capabilities,
+    resolve_reference_assets,
+    usage_from_asset,
+)
 from app.services.translator import Translator
 
 logger = logging.getLogger("pixelforge.jobs")
@@ -93,6 +101,10 @@ class Job:
     # Resolved once per job so a settings change cannot swap models mid-job.
     checkpoint: str = ""
     lora: str | None = None
+    # Reference page: ComfyUI input filenames and the metadata shown in results.
+    reference_files: list[str] = field(default_factory=list)
+    reference_usage: list[ReferenceUsage] = field(default_factory=list)
+    reference_face_available: bool = False
 
 
 class JobManager:
@@ -377,7 +389,8 @@ class JobManager:
     async def _run_job(self, job: Job) -> None:
         started = time.monotonic()
         ws_task: asyncio.Task | None = None
-        is_image = job.request.kind == "image"
+        is_native = job.request.kind in {"image", "reference"}
+        is_reference = job.request.kind == "reference"
         try:
             if job.cancel_requested:
                 self._mark_cancelled(job)
@@ -395,13 +408,17 @@ class JobManager:
             job.stage_message = "모델을 확인하는 중..."
             await self._check_models(job)
 
+            if is_reference:
+                job.stage_message = "참고 이미지를 준비하는 중..."
+                await self._prepare_references(job)
+
             job.stage_message = "워크플로를 준비하는 중..."
             requested_candidates = int(
                 job.request.candidates or self.settings.generation.default_candidates
             )
             job.candidate_count = (
                 1
-                if is_image
+                if is_native
                 else 1
                 if job.request.mode == "tile"
                 else max(
@@ -430,7 +447,7 @@ class JobManager:
                 )
                 job.stage_message = (
                     "이미지를 생성하는 중..."
-                    if is_image
+                    if is_native
                     else f"후보 {candidate_index + 1}/{job.candidate_count} 생성 중..."
                 )
                 prompt_id = await self.comfy.queue_prompt(workflow, client_id)
@@ -467,7 +484,7 @@ class JobManager:
                         detail=str(exc),
                     ) from exc
 
-                if is_image:
+                if is_native:
                     candidates.append(
                         {
                             "index": candidate_index,
@@ -485,7 +502,7 @@ class JobManager:
                             "seed": candidate_seed,
                             "file": candidate_path.name,
                             "status": "ok",
-                            "kind": "image",
+                            "kind": job.request.kind,
                             "size": job.request.image_size,
                             "warnings": [],
                         }
@@ -561,7 +578,7 @@ class JobManager:
                     "모든 후보의 후처리에 실패했습니다. 원본 후보 이미지는 outputs/candidates에 보존되어 있습니다."
                 )
 
-            if is_image:
+            if is_native:
                 selected = candidates[0]
                 job.candidate_index = 0
                 job.seed_used = int(selected["seed"])
@@ -582,23 +599,38 @@ class JobManager:
                 image_path, preview_path = save_image_result(
                     self.settings, job.id, image_result, job.request.image_size
                 )
-                job.result = image_result_info(
-                    self.settings,
-                    job.id,
-                    job.request.image_size,
-                    job.request.mode,
-                    candidates_generated=len(candidates),
-                    candidate_index=0,
-                    warnings=job.warnings,
-                )
+                if is_reference:
+                    job.result = reference_result_info(
+                        self.settings,
+                        job.id,
+                        job.request.image_size,
+                        references=job.reference_usage,
+                        mode=job.request.mode,
+                        candidates_generated=len(candidates),
+                        candidate_index=0,
+                        warnings=job.warnings,
+                    )
+                else:
+                    job.result = image_result_info(
+                        self.settings,
+                        job.id,
+                        job.request.image_size,
+                        job.request.mode,
+                        candidates_generated=len(candidates),
+                        candidate_index=0,
+                        warnings=job.warnings,
+                    )
                 job.completed_at = datetime.now(timezone.utc)
-                self._save_image_metadata(job, original_path, image_path, preview_path, started)
+                self._save_native_metadata(
+                    job, original_path, image_path, preview_path, started
+                )
                 job.progress = 100
                 job.status = JobStatus.COMPLETED
                 job.stage_message = "완료"
                 self._persist(job)
                 logger.info(
-                    "Image job %s completed in %.2fs (%sx%s)",
+                    "%s job %s completed in %.2fs (%sx%s)",
+                    job.request.kind.title(),
                     job.id,
                     time.monotonic() - started,
                     job.request.image_size,
@@ -706,9 +738,10 @@ class JobManager:
                 ws_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await ws_task
+            self._cleanup_reference_uploads(job)
 
     async def _set_prompt(self, job: Job) -> None:
-        if job.request.kind == "image":
+        if job.request.kind in {"image", "reference"}:
             self._resolve_models(job)
             original_prompt = job.request.prompt
             original_negative = (job.request.negative_prompt or "").strip()
@@ -779,6 +812,11 @@ class JobManager:
                 detail=f"https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors",
             )
         if not is_sdxl_compatible(checkpoint):
+            if job.request.kind == "reference":
+                raise ReferenceCompatibilityError(
+                    f"체크포인트 '{checkpoint}'는 SDXL 계열이 아니어서 IP-Adapter Plus를 "
+                    "적용할 수 없습니다. SDXL 1.0, NoobAI, Pony, Illustrious 계열을 선택해 주세요."
+                )
             raise ModelMissingError(
                 f"체크포인트 '{checkpoint}'는 SDXL 텍스트→이미지 모델이 아닙니다. "
                 "SDXL 호환 체크포인트를 선택하거나 모델 목록에서 새 모델을 받아 주세요."
@@ -793,10 +831,25 @@ class JobManager:
                 detail="https://huggingface.co/nerijs/pixel-art-xl/resolve/main/pixel-art-xl.safetensors",
             )
 
+        if job.request.kind == "reference":
+            capabilities = await get_reference_capabilities(
+                self.settings, self.comfy, checkpoint
+            )
+            job.reference_face_available = capabilities.plus_face_model
+            if not capabilities.available or capabilities.checkpoint_compatible is False:
+                guidance = capabilities.guidance or capabilities.checkpoint_note
+                raise ReferenceCompatibilityError(
+                    "이미지 레퍼런스(IP-Adapter Plus)를 사용할 수 없습니다. "
+                    + (guidance or "IP-Adapter Plus 설치 상태를 확인해 주세요."),
+                    detail=capabilities.install_hint or None,
+                )
+
     def _resolve_models(self, job: Job) -> None:
         if not job.checkpoint:
             if job.request.kind == "image":
                 default_checkpoint = self.settings.generation.image_checkpoint
+            elif job.request.kind == "reference":
+                default_checkpoint = self.settings.generation.reference_checkpoint
             else:
                 default_checkpoint = self.settings.generation.checkpoint
             job.checkpoint = (
@@ -806,6 +859,8 @@ class JobManager:
             if job.request.lora is None:
                 if job.request.kind == "image":
                     job.lora = self.settings.generation.image_lora
+                elif job.request.kind == "reference":
+                    job.lora = self.settings.generation.reference_lora
                 else:
                     job.lora = self.settings.generation.lora
             else:
@@ -827,8 +882,9 @@ class JobManager:
             raise ComfyExecutionError("워크플로 JSON 형식이 올바르지 않습니다.")
 
         generation = self.settings.generation
-        width = job.request.image_size if job.request.kind == "image" else generation.base_width
-        height = job.request.image_size if job.request.kind == "image" else generation.base_height
+        is_native = job.request.kind in {"image", "reference"}
+        width = job.request.image_size if is_native else generation.base_width
+        height = job.request.image_size if is_native else generation.base_height
         try:
             workflow["1"]["inputs"]["ckpt_name"] = job.checkpoint
             workflow["3"]["inputs"]["text"] = job.prompt_used or job.request.prompt
@@ -844,7 +900,13 @@ class JobManager:
                     "scheduler": generation.scheduler,
                 }
             )
-            prefix = "i" if job.request.kind == "image" else "c"
+            prefix = (
+                "r"
+                if job.request.kind == "reference"
+                else "i"
+                if job.request.kind == "image"
+                else "c"
+            )
             workflow["8"]["inputs"]["filename_prefix"] = (
                 f"pixelforge/{job.id}_{prefix}{candidate_index}"
             )
@@ -859,6 +921,7 @@ class JobManager:
             workflow["2"]["inputs"]["lora_name"] = job.lora
             workflow["2"]["inputs"]["strength_model"] = job.request.lora_strength
             workflow["2"]["inputs"]["strength_clip"] = job.request.lora_strength
+            base_model: list[Any] = ["2", 0]
         else:
             # Bypass LoRA entirely when strength is zero, so a missing LoRA file
             # does not block plain SDXL generation.
@@ -866,8 +929,84 @@ class JobManager:
             workflow["4"]["inputs"]["clip"] = ["1", 1]
             workflow["6"]["inputs"]["model"] = ["1", 0]
             workflow.pop("2", None)
+            base_model = ["1", 0]
+
+        if job.request.kind == "reference":
+            self._apply_reference_nodes(job, workflow, base_model)
 
         return workflow
+
+    @staticmethod
+    def _reference_weight_type(focus: str) -> str:
+        if focus == "style":
+            return "style transfer"
+        if focus == "pose":
+            return "composition"
+        if focus == "composition":
+            return "composition precise"
+        return "linear"
+
+    def _apply_reference_nodes(
+        self,
+        job: Job,
+        workflow: dict[str, Any],
+        base_model: list[Any],
+    ) -> None:
+        """Insert IP-Adapter Plus loaders and a per-reference apply chain.
+
+        Each reference gets its own LoadImage and IPAdapterAdvanced node, so the
+        user can mix appearance, style, and composition references with
+        independent strengths. Face-focused references use the Plus Face model
+        when it is installed.
+        """
+        pairs = [
+            (usage, filename)
+            for usage, filename in zip(job.reference_usage, job.reference_files)
+            if usage.strength > 0
+        ]
+        if not pairs:
+            return
+        use_face = job.reference_face_available and any(
+            usage.focus == "face" for usage, _ in pairs
+        )
+        workflow["20"] = {
+            "class_type": "IPAdapterUnifiedLoader",
+            "inputs": {"model": base_model, "preset": "PLUS (high strength)"},
+        }
+        if use_face:
+            workflow["21"] = {
+                "class_type": "IPAdapterUnifiedLoader",
+                "inputs": {"model": base_model, "preset": "PLUS FACE (portraits)"},
+            }
+
+        current_model: list[Any] = ["20", 0]
+        for index, (usage, filename) in enumerate(pairs):
+            load_id = str(30 + index)
+            apply_id = str(40 + index)
+            workflow[load_id] = {
+                "class_type": "LoadImage",
+                "inputs": {"image": filename},
+            }
+            if usage.focus == "face" and use_face:
+                ipadapter_link: list[Any] = ["21", 1]
+            else:
+                ipadapter_link = ["20", 1]
+            workflow[apply_id] = {
+                "class_type": "IPAdapterAdvanced",
+                "inputs": {
+                    "model": current_model,
+                    "ipadapter": ipadapter_link,
+                    "image": [load_id, 0],
+                    "weight": round(float(usage.strength), 3),
+                    "weight_type": self._reference_weight_type(usage.focus),
+                    "combine_embeds": "concat",
+                    "start_at": 0.0,
+                    "end_at": 1.0,
+                    "embeds_scaling": "V only",
+                },
+            }
+            current_model = [apply_id, 0]
+        workflow["6"]["inputs"]["model"] = current_model
 
     async def _wait_for_completion(self, job: Job, prompt_id: str) -> dict[str, Any]:
         deadline = time.monotonic() + self.settings.comfyui.job_timeout_seconds
@@ -1081,7 +1220,58 @@ class JobManager:
         except Exception:
             logger.exception("Failed to save metadata for job %s", job.id)
 
-    def _save_image_metadata(
+    def _cleanup_reference_uploads(self, job: Job) -> None:
+        """Remove the temporary copies uploaded to ComfyUI's input folder.
+
+        The originals stay in ``outputs/references/uploads`` so the user can
+        reuse them, but ComfyUI's input folder should not grow without bound.
+        """
+        if not job.reference_files:
+            return
+        input_dir = Path(self.settings.comfyui.input_dir).expanduser()
+        if not input_dir.is_dir():
+            return
+        for name in job.reference_files:
+            try:
+                target = input_dir / name
+                if target.is_file():
+                    target.unlink()
+            except OSError:
+                logger.debug("Could not remove ComfyUI input %s", name, exc_info=True)
+        job.reference_files = []
+
+    async def _prepare_references(self, job: Job) -> None:
+        """Resolve stored reference assets and upload copies to ComfyUI.
+
+        ComfyUI's LoadImage reads from its own input folder, so each job uploads
+        a uniquely named copy. A finished job never reuses a filename that a
+        later job might overwrite.
+        """
+        resolved = resolve_reference_assets(self.settings, job.request.reference_images)
+        job.reference_usage = [
+            usage_from_asset(item.asset, item.input) for item in resolved
+        ]
+        job.reference_files = []
+        for index, item in enumerate(resolved):
+            try:
+                content = await asyncio.to_thread(item.path.read_bytes)
+            except OSError as exc:
+                raise ReferenceCompatibilityError(
+                    "참고 이미지 파일을 읽지 못했습니다.",
+                    detail=str(exc),
+                ) from exc
+            filename = f"pixelforge_ref_{job.id}_{index}_{item.asset.id}.png"
+            uploaded = await self.comfy.upload_image(filename, content)
+            job.reference_files.append(uploaded)
+        if not job.reference_face_available and any(
+            usage.focus == "face" for usage in job.reference_usage
+        ):
+            job.warnings.append(
+                "IP-Adapter Plus Face 모델을 찾지 못해 얼굴 참고를 일반 Plus 모델로 적용합니다. "
+                "얼굴 고정이 중요하면 ip-adapter-plus-face_sdxl_vit-h.safetensors를 설치해 주세요."
+            )
+
+    def _save_native_metadata(
         self,
         job: Job,
         original_path: Path,
@@ -1089,12 +1279,13 @@ class JobManager:
         preview_path: Path,
         started: float,
     ) -> None:
+        kind = job.request.kind
         data = {
             "created_at": job.created_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "completed_at": job.completed_at.isoformat() if job.completed_at else None,
             "request": job.request.model_dump(),
-            "kind": "image",
+            "kind": kind,
             "seed_used": job.seed_used,
             "base_seed": job.base_seed,
             "prompt_original": job.prompt_original,
@@ -1111,6 +1302,7 @@ class JobManager:
             "transparent": False,
             "postprocess": None,
             "warnings": job.warnings,
+            "references": [usage.model_dump() for usage in job.reference_usage],
             "candidates_requested": job.request.candidates,
             "candidates_generated": len(
                 [item for item in job.candidate_summaries if item.get("status") == "ok"]
@@ -1121,8 +1313,16 @@ class JobManager:
             "candidate_prompt_ids": job.candidate_prompt_ids,
             "prompt_plan": None,
             "generation": {
-                "checkpoint": job.checkpoint or self.settings.generation.image_checkpoint,
-                "lora": job.lora if job.lora is not None else self.settings.generation.image_lora,
+                "checkpoint": job.checkpoint or (
+                    self.settings.generation.reference_checkpoint
+                    if kind == "reference"
+                    else self.settings.generation.image_checkpoint
+                ),
+                "lora": job.lora if job.lora is not None else (
+                    self.settings.generation.reference_lora
+                    if kind == "reference"
+                    else self.settings.generation.image_lora
+                ),
                 "lora_enabled": bool(job.lora) and job.request.lora_strength > 0,
                 "steps": job.request.steps,
                 "cfg": job.request.cfg,
@@ -1131,6 +1331,16 @@ class JobManager:
                 "scheduler": self.settings.generation.scheduler,
                 "base_width": job.request.image_size,
                 "base_height": job.request.image_size,
+                "ipadapter": (
+                    {
+                        "preset": "PLUS (high strength)",
+                        "face_preset": "PLUS FACE (portraits)"
+                        if job.reference_face_available
+                        else None,
+                    }
+                    if kind == "reference"
+                    else None
+                ),
             },
             "elapsed_seconds": round(time.monotonic() - started, 2),
             "comfy_prompt_id": job.comfy_prompt_id,
@@ -1138,4 +1348,4 @@ class JobManager:
         try:
             save_metadata(self.settings, job.id, data)
         except Exception:
-            logger.exception("Failed to save image metadata for job %s", job.id)
+            logger.exception("Failed to save %s metadata for job %s", kind, job.id)

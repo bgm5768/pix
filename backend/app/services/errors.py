@@ -32,6 +32,16 @@ class ModelMissingError(PixelForgeError):
     status_code = 409
 
 
+class ReferenceError(PixelForgeError):
+    code = "REFERENCE_ERROR"
+    status_code = 400
+
+
+class ReferenceCompatibilityError(PixelForgeError):
+    code = "REFERENCE_UNSUPPORTED"
+    status_code = 409
+
+
 class VramError(PixelForgeError):
     code = "VRAM_OOM"
     status_code = 507

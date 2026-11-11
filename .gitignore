@@ -20,6 +20,7 @@ outputs/image_previews/*
 outputs/cutouts/*
 outputs/crops/*
 outputs/candidates/*
+outputs/references/*
 !outputs/**/.gitkeep
 logs/*
 !logs/.gitkeep

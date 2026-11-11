@@ -14,12 +14,20 @@ interface GalleryProps {
 
 export function Gallery({ kind, items, loading, disabled, onSelect, onDelete }: GalleryProps) {
   const isImage = kind === "image";
+  const isReference = kind === "reference";
+  const isNative = isImage || isReference;
   return (
     <section className="panel gallery-panel">
       <div className="panel-head">
         <div>
           <span className="eyebrow">05 · ARCHIVE</span>
-          <h2>{isImage ? "최근 이미지" : "최근 결과"}</h2>
+          <h2>
+            {isReference
+              ? "최근 레퍼런스 결과"
+              : isImage
+                ? "최근 이미지"
+                : "최근 결과"}
+          </h2>
         </div>
         <span className="micro-badge">{items.length} SAVED</span>
       </div>
@@ -32,15 +40,19 @@ export function Gallery({ kind, items, loading, disabled, onSelect, onDelete }: 
         </div>
       ) : items.length === 0 ? (
         <p className="gallery-empty">
-          {isImage
-            ? "아직 저장된 이미지가 없습니다. 첫 이미지를 만들어 보세요."
-            : "아직 저장된 결과가 없습니다. 첫 도트를 만들어 보세요."}
+          {isReference
+            ? "아직 저장된 레퍼런스 결과가 없습니다. 첫 레퍼런스 이미지를 만들어 보세요."
+            : isImage
+              ? "아직 저장된 이미지가 없습니다. 첫 이미지를 만들어 보세요."
+              : "아직 저장된 결과가 없습니다. 첫 도트를 만들어 보세요."}
         </p>
       ) : (
         <div className="gallery-grid">
           {items.map((item) => {
-            const src = isImage ? (item.image_url ?? item.preview_url) : item.preview_url;
-            const filename = `pixelforge_${item.job_id}_${isImage ? "image_" : ""}${item.output_size}px.png`;
+            const src = isNative ? (item.image_url ?? item.preview_url) : item.preview_url;
+            const filename = `pixelforge_${item.job_id}_${
+              isImage ? "image_" : isReference ? "reference_" : ""
+            }${item.output_size}px.png`;
             return (
               <article key={item.job_id} className="gallery-card">
                 <button
@@ -48,20 +60,27 @@ export function Gallery({ kind, items, loading, disabled, onSelect, onDelete }: 
                   className="gallery-open"
                   onClick={() => onSelect(item)}
                   disabled={disabled}
-                  title={item.prompt || `${item.output_size}px ${isImage ? "이미지" : "도트"}`}
+                  title={item.prompt || `${item.output_size}px ${isNative ? "이미지" : "도트"}`}
                 >
-                  <div className={`gallery-thumb ${isImage ? "image-thumb" : "checker"}`}>
+                  <div className={`gallery-thumb ${isNative ? "image-thumb" : "checker"}`}>
                     <img
                       src={assetUrl(src)}
-                      alt={`${item.output_size}px ${isImage ? "이미지" : "도트"} 썸네일`}
-                      style={isImage ? undefined : { imageRendering: "pixelated" }}
+                      alt={`${item.output_size}px ${isNative ? "이미지" : "도트"} 썸네일`}
+                      style={isNative ? undefined : { imageRendering: "pixelated" }}
                       loading="lazy"
                     />
-                    {!isImage && item.transparent && <span className="thumb-alpha">α</span>}
+                    {!isNative && item.transparent && <span className="thumb-alpha">α</span>}
+                    {isReference && item.references && item.references.length > 0 && (
+                      <span className="thumb-refs">REF {item.references.length}</span>
+                    )}
                   </div>
                   <div className="gallery-meta">
                     <span className="gallery-size">
-                      {isImage ? `${item.output_size}px IMAGE` : `${item.output_size}px`}
+                      {isReference
+                        ? `${item.output_size}px REF`
+                        : isImage
+                          ? `${item.output_size}px IMAGE`
+                          : `${item.output_size}px`}
                     </span>
                     <span>{formatRelative(item.created_at)}</span>
                   </div>

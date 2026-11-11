@@ -4,8 +4,9 @@ import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
 import { BackendOverride } from "./components/BackendOverride";
 import { JobList } from "./components/JobList";
-import { PaletteIcon, SparkIcon } from "./components/Icons";
+import { ImageIcon, PaletteIcon, SparkIcon } from "./components/Icons";
 import { PromptPanel } from "./components/PromptPanel";
+import { ReferencePanel } from "./components/ReferencePanel";
 import { ResourceBar } from "./components/ResourceBar";
 import { ResultPanel } from "./components/ResultPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -25,6 +26,10 @@ import type {
   AssetMode,
   OutputSize,
   PostProcessMode,
+  ReferenceAsset,
+  ReferenceCapabilities,
+  ReferenceFocus,
+  ReferenceItem,
   ResizeFilter,
   SystemStatusResponse,
   TranslationPreview,
@@ -32,8 +37,10 @@ import type {
 
 const KEY_PROMPT = "pixelforge.prompt";
 const KEY_PROMPT_IMAGE = "pixelforge.prompt.image";
+const KEY_PROMPT_REFERENCE = "pixelforge.prompt.reference";
 const KEY_NEGATIVE = "pixelforge.negative";
 const KEY_NEGATIVE_IMAGE = "pixelforge.negative.image";
+const KEY_NEGATIVE_REFERENCE = "pixelforge.negative.reference";
 const KEY_SETTINGS = "pixelforge.settings";
 
 const DEFAULT_NEGATIVE =
@@ -58,6 +65,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   imageSize: 1024,
   imageCheckpoint: null,
   imageLora: null,
+  referenceSize: 1024,
+  referenceCheckpoint: null,
+  referenceLora: null,
+  referenceStrength: 0.85,
+  referenceFocus: "appearance",
   autoTranslate: true,
 };
 
@@ -108,6 +120,14 @@ function readStoredSettings(): AppSettings | null {
     const imageSize = IMAGE_SIZES.includes(parsed.imageSize as ImageSize)
       ? (parsed.imageSize as ImageSize)
       : DEFAULT_SETTINGS.imageSize;
+    const referenceSize = IMAGE_SIZES.includes(parsed.referenceSize as ImageSize)
+      ? (parsed.referenceSize as ImageSize)
+      : DEFAULT_SETTINGS.referenceSize;
+    const referenceFocus = ["appearance", "face", "style", "pose", "composition"].includes(
+      String(parsed.referenceFocus),
+    )
+      ? (parsed.referenceFocus as ReferenceFocus)
+      : DEFAULT_SETTINGS.referenceFocus;
     return {
       mode,
       outputSize,
@@ -130,6 +150,14 @@ function readStoredSettings(): AppSettings | null {
       imageCheckpoint:
         typeof parsed.imageCheckpoint === "string" ? parsed.imageCheckpoint : null,
       imageLora: typeof parsed.imageLora === "string" ? parsed.imageLora : null,
+      referenceSize,
+      referenceCheckpoint:
+        typeof parsed.referenceCheckpoint === "string" ? parsed.referenceCheckpoint : null,
+      referenceLora: typeof parsed.referenceLora === "string" ? parsed.referenceLora : null,
+      referenceStrength: Number.isFinite(parsed.referenceStrength)
+        ? Number(parsed.referenceStrength)
+        : DEFAULT_SETTINGS.referenceStrength,
+      referenceFocus,
       autoTranslate:
         typeof parsed.autoTranslate === "boolean" ? parsed.autoTranslate : true,
     };
@@ -139,8 +167,8 @@ function readStoredSettings(): AppSettings | null {
 }
 
 function displayFromOutput(item: OutputItem): DisplayResult {
-  const isImage = item.kind === "image";
-  const scale = isImage ? 1 : Math.max(1, Math.floor(512 / item.output_size));
+  const isNative = item.kind === "image" || item.kind === "reference";
+  const scale = isNative ? 1 : Math.max(1, Math.floor(512 / item.output_size));
   return {
     jobId: item.job_id,
     prompt: item.prompt,
@@ -154,7 +182,7 @@ function displayFromOutput(item: OutputItem): DisplayResult {
       pixel_url: item.pixel_url ?? null,
       preview_url: item.preview_url,
       image_url: item.image_url ?? null,
-      image_preview_url: isImage ? item.preview_url : null,
+      image_preview_url: isNative ? item.preview_url : null,
       download_url: item.download_url,
       width: item.width,
       height: item.height,
@@ -172,6 +200,7 @@ function displayFromOutput(item: OutputItem): DisplayResult {
       candidate_index: item.candidate_index ?? 0,
       candidate_score: item.candidate_score ?? 0,
       panel_suspected: item.panel_suspected ?? false,
+      references: item.references ?? [],
     },
   };
 }
@@ -182,16 +211,25 @@ export default function App() {
   const [hasStoredImageNegative] = useState(
     () => localStorage.getItem(KEY_NEGATIVE_IMAGE) !== null,
   );
+  const [hasStoredReferenceNegative] = useState(
+    () => localStorage.getItem(KEY_NEGATIVE_REFERENCE) !== null,
+  );
   const [page, setPage] = useState<PageKind>("pixel");
   const [prompt, setPrompt] = useState(() => localStorage.getItem(KEY_PROMPT) ?? "");
   const [imagePrompt, setImagePrompt] = useState(
     () => localStorage.getItem(KEY_PROMPT_IMAGE) ?? "",
+  );
+  const [referencePrompt, setReferencePrompt] = useState(
+    () => localStorage.getItem(KEY_PROMPT_REFERENCE) ?? "",
   );
   const [negative, setNegative] = useState(
     () => localStorage.getItem(KEY_NEGATIVE) ?? DEFAULT_NEGATIVE,
   );
   const [imageNegative, setImageNegative] = useState(
     () => localStorage.getItem(KEY_NEGATIVE_IMAGE) ?? DEFAULT_IMAGE_NEGATIVE,
+  );
+  const [referenceNegative, setReferenceNegative] = useState(
+    () => localStorage.getItem(KEY_NEGATIVE_REFERENCE) ?? DEFAULT_IMAGE_NEGATIVE,
   );
   const [settings, setSettings] = useState<AppSettings>(storedSettings ?? DEFAULT_SETTINGS);
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -206,37 +244,62 @@ export default function App() {
   const [outputsByPage, setOutputsByPage] = useState<Record<PageKind, OutputItem[]>>({
     pixel: [],
     image: [],
+    reference: [],
   });
   const [outputsLoading, setOutputsLoading] = useState(true);
   const [jobIds, setJobIds] = useState<Record<PageKind, string | null>>({
     pixel: null,
     image: null,
+    reference: null,
   });
   const [jobs, setJobs] = useState<Record<PageKind, JobView | null>>({
     pixel: null,
     image: null,
+    reference: null,
   });
   const [displays, setDisplays] = useState<Record<PageKind, DisplayResult | null>>({
     pixel: null,
     image: null,
+    reference: null,
   });
   const [errors, setErrors] = useState<Record<PageKind, string | null>>({
     pixel: null,
     image: null,
+    reference: null,
   });
   const [notices, setNotices] = useState<Record<PageKind, string | null>>({
     pixel: null,
     image: null,
+    reference: null,
   });
   const [generating, setGenerating] = useState<Record<PageKind, boolean>>({
     pixel: false,
     image: false,
+    reference: false,
   });
-  const [imageTranslation, setImageTranslation] =
+  const [nativeTranslation, setNativeTranslation] =
     useState<TranslationPreview>(EMPTY_TRANSLATION);
+  const [referenceItems, setReferenceItems] = useState<ReferenceItem[]>([]);
+  const [referenceSamples, setReferenceSamples] = useState<ReferenceAsset[]>([]);
+  const [referenceSamplesLoading, setReferenceSamplesLoading] = useState(false);
+  const [referenceCapabilities, setReferenceCapabilities] =
+    useState<ReferenceCapabilities | null>(null);
+  const [referenceCapabilitiesLoading, setReferenceCapabilitiesLoading] = useState(false);
+  const [referenceCapabilitiesError, setReferenceCapabilitiesError] = useState<string | null>(
+    null,
+  );
+  const [referenceUploading, setReferenceUploading] = useState(false);
+  const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
 
-  const activeNegative = page === "image" ? imageNegative : negative;
-  const activePrompt = page === "image" ? imagePrompt : prompt;
+  const activeNegative =
+    page === "image"
+      ? imageNegative
+      : page === "reference"
+        ? referenceNegative
+        : negative;
+  const activePrompt =
+    page === "image" ? imagePrompt : page === "reference" ? referencePrompt : prompt;
+  const isNativePage = page === "image" || page === "reference";
 
   /**
    * Merge a fresh /api/jobs response. Any job that is still queued/running is
@@ -266,29 +329,41 @@ export default function App() {
       }
     }
 
-    if (!activeByKind.pixel && !activeByKind.image) return;
+    if (!activeByKind.pixel && !activeByKind.image && !activeByKind.reference) return;
 
     setJobIds((current) => {
       const next = { ...current };
-      (["pixel", "image"] as const).forEach((kind) => {
+      (["pixel", "image", "reference"] as const).forEach((kind) => {
         const active = activeByKind[kind];
         if (!next[kind] && active) next[kind] = active.job_id;
       });
-      return next.pixel === current.pixel && next.image === current.image ? current : next;
+      return next.pixel === current.pixel &&
+        next.image === current.image &&
+        next.reference === current.reference
+        ? current
+        : next;
     });
     setJobs((current) => {
       const next = { ...current };
-      (["pixel", "image"] as const).forEach((kind) => {
+      (["pixel", "image", "reference"] as const).forEach((kind) => {
         if (!next[kind] && activeByKind[kind]) next[kind] = activeByKind[kind] ?? null;
       });
-      return next.pixel === current.pixel && next.image === current.image ? current : next;
+      return next.pixel === current.pixel &&
+        next.image === current.image &&
+        next.reference === current.reference
+        ? current
+        : next;
     });
     setGenerating((current) => {
       const next = { ...current };
-      (["pixel", "image"] as const).forEach((kind) => {
+      (["pixel", "image", "reference"] as const).forEach((kind) => {
         if (activeByKind[kind]) next[kind] = true;
       });
-      return next.pixel === current.pixel && next.image === current.image ? current : next;
+      return next.pixel === current.pixel &&
+        next.image === current.image &&
+        next.reference === current.reference
+        ? current
+        : next;
     });
   }, []);
 
@@ -358,21 +433,29 @@ export default function App() {
   }, [imageNegative]);
 
   useEffect(() => {
+    localStorage.setItem(KEY_PROMPT_REFERENCE, referencePrompt);
+  }, [referencePrompt]);
+
+  useEffect(() => {
+    localStorage.setItem(KEY_NEGATIVE_REFERENCE, referenceNegative);
+  }, [referenceNegative]);
+
+  useEffect(() => {
     localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
-    if (page !== "image" || !settings.autoTranslate) {
-      setImageTranslation(EMPTY_TRANSLATION);
+    if (!isNativePage || !settings.autoTranslate) {
+      setNativeTranslation(EMPTY_TRANSLATION);
       return;
     }
-    const source = imagePrompt.trim();
+    const source = activePrompt.trim();
     if (!source) {
-      setImageTranslation(EMPTY_TRANSLATION);
+      setNativeTranslation(EMPTY_TRANSLATION);
       return;
     }
     if (!/[가-힣]/.test(source)) {
-      setImageTranslation({
+      setNativeTranslation({
         source,
         text: source,
         status: "idle",
@@ -384,7 +467,7 @@ export default function App() {
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      setImageTranslation({
+      setNativeTranslation({
         source,
         text: "",
         status: "loading",
@@ -395,7 +478,7 @@ export default function App() {
         .translatePrompt(source)
         .then((result) => {
           if (cancelled) return;
-          setImageTranslation({
+          setNativeTranslation({
             source,
             text: result.text || source,
             status: result.error ? "error" : "done",
@@ -405,7 +488,7 @@ export default function App() {
         })
         .catch((cause) => {
           if (cancelled) return;
-          setImageTranslation({
+          setNativeTranslation({
             source,
             text: "",
             status: "error",
@@ -419,7 +502,7 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [page, imagePrompt, settings.autoTranslate]);
+  }, [page, isNativePage, activePrompt, settings.autoTranslate]);
 
   const refreshOutputs = useCallback(async (kind: PageKind) => {
     try {
@@ -465,6 +548,11 @@ export default function App() {
             imageSize: loaded.default_image_size,
             imageCheckpoint: loaded.image_checkpoint || null,
             imageLora: loaded.image_lora || "",
+            referenceSize: loaded.reference_default_size ?? loaded.default_image_size,
+            referenceCheckpoint: loaded.reference_checkpoint || loaded.image_checkpoint || null,
+            referenceLora: loaded.reference_lora || "",
+            referenceStrength: loaded.reference_default_strength ?? 0.85,
+            referenceFocus: loaded.reference_default_focus ?? "appearance",
             autoTranslate: true,
           });
         } else {
@@ -474,6 +562,11 @@ export default function App() {
             ...previous,
             checkpoint: previous.checkpoint || loaded.checkpoint,
             imageCheckpoint: previous.imageCheckpoint || loaded.image_checkpoint || null,
+            referenceCheckpoint:
+              previous.referenceCheckpoint ||
+              loaded.reference_checkpoint ||
+              loaded.image_checkpoint ||
+              null,
           }));
         }
         if (!hasStoredNegative) {
@@ -482,6 +575,11 @@ export default function App() {
         if (!hasStoredImageNegative) {
           setImageNegative(loaded.default_image_negative_prompt || DEFAULT_IMAGE_NEGATIVE);
         }
+        if (!hasStoredReferenceNegative) {
+          setReferenceNegative(
+            loaded.default_image_negative_prompt || DEFAULT_IMAGE_NEGATIVE,
+          );
+        }
       })
       .catch(() => {
         // Defaults in the UI still work if config cannot be loaded.
@@ -489,7 +587,12 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [storedSettings, hasStoredNegative, hasStoredImageNegative]);
+  }, [
+    storedSettings,
+    hasStoredNegative,
+    hasStoredImageNegative,
+    hasStoredReferenceNegative,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -529,7 +632,55 @@ export default function App() {
     setSettings((current) =>
       current.imageCheckpoint ? current : { ...current, imageCheckpoint: fallback.name },
     );
+    const referencePreferred = config?.reference_checkpoint || config?.image_checkpoint;
+    const referenceFallback =
+      imageCheckpoints.find((item) => item.name === referencePreferred) ?? fallback;
+    setSettings((current) =>
+      current.referenceCheckpoint
+        ? current
+        : { ...current, referenceCheckpoint: referenceFallback.name },
+    );
   }, [health, config]);
+
+  const referenceCheckpoint = settings.referenceCheckpoint ?? null;
+
+  const loadReferenceCapabilities = useCallback(async () => {
+    setReferenceCapabilitiesLoading(true);
+    try {
+      const capabilities = await api.getReferenceCapabilities(referenceCheckpoint);
+      setReferenceCapabilities(capabilities);
+      setReferenceCapabilitiesError(null);
+    } catch (cause) {
+      setReferenceCapabilities(null);
+      setReferenceCapabilitiesError(
+        cause instanceof Error ? cause.message : "IP-Adapter 상태를 확인하지 못했습니다.",
+      );
+    } finally {
+      setReferenceCapabilitiesLoading(false);
+    }
+  }, [referenceCheckpoint]);
+
+  const loadReferenceSamples = useCallback(async () => {
+    setReferenceSamplesLoading(true);
+    try {
+      const response = await api.getReferenceSamples();
+      setReferenceSamples(response.items);
+    } catch {
+      // Samples are optional; the upload path still works without them.
+    } finally {
+      setReferenceSamplesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (page !== "reference") return;
+    void loadReferenceCapabilities();
+  }, [page, loadReferenceCapabilities]);
+
+  useEffect(() => {
+    if (page !== "reference") return;
+    void loadReferenceSamples();
+  }, [page, loadReferenceSamples]);
 
   useEffect(() => {
     let cancelled = false;
@@ -609,7 +760,7 @@ export default function App() {
       }
     };
 
-    (["pixel", "image"] as const).forEach((kind) => {
+    (["pixel", "image", "reference"] as const).forEach((kind) => {
       const id = jobIds[kind];
       if (id) void tick(kind, id);
     });
@@ -618,7 +769,7 @@ export default function App() {
       cancelled = true;
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [jobIds.pixel, jobIds.image, refreshOutputs, refreshJobHistory]);
+  }, [jobIds.pixel, jobIds.image, jobIds.reference, refreshOutputs, refreshJobHistory]);
 
   useEffect(() => {
     if (!notices.pixel) return;
@@ -638,16 +789,36 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [notices.image]);
 
+  useEffect(() => {
+    if (!notices.reference) return;
+    const timer = window.setTimeout(
+      () => setNotices((current) => ({ ...current, reference: null })),
+      4500,
+    );
+    return () => window.clearTimeout(timer);
+  }, [notices.reference]);
+
   const submit = useCallback(
     async (overrideSeed?: number) => {
       const targetPage = page;
       const isImage = targetPage === "image";
+      const isReference = targetPage === "reference";
+      const isNative = isImage || isReference;
       if (generating[targetPage]) return;
-      const trimmed = (isImage ? imagePrompt : prompt).trim();
+      const trimmed = (
+        isImage ? imagePrompt : isReference ? referencePrompt : prompt
+      ).trim();
       if (!trimmed) {
         setJobs((current) => ({ ...current, [targetPage]: null }));
         setJobIds((current) => ({ ...current, [targetPage]: null }));
         setErrors((current) => ({ ...current, [targetPage]: "프롬프트를 입력해 주세요." }));
+        return;
+      }
+      if (isReference && referenceItems.length === 0) {
+        setErrors((current) => ({
+          ...current,
+          [targetPage]: "참고 이미지를 1장 이상 선택해 주세요.",
+        }));
         return;
       }
 
@@ -668,16 +839,16 @@ export default function App() {
 
       let promptForGeneration = trimmed;
       let translatePrompt = false;
-      if (isImage && settings.autoTranslate) {
+      if (isNative && settings.autoTranslate) {
         translatePrompt = true;
         if (/[가-힣]/.test(trimmed)) {
           try {
             const ready =
-              imageTranslation.source === trimmed &&
-              imageTranslation.status === "done" &&
-              imageTranslation.translated &&
-              imageTranslation.text
-                ? imageTranslation.text
+              nativeTranslation.source === trimmed &&
+              nativeTranslation.status === "done" &&
+              nativeTranslation.translated &&
+              nativeTranslation.text
+                ? nativeTranslation.text
                 : null;
             if (ready) {
               promptForGeneration = ready;
@@ -695,23 +866,40 @@ export default function App() {
 
       const payload: GenerateRequest = {
         prompt: promptForGeneration,
-        negative_prompt: (isImage ? imageNegative : negative).trim() || null,
-        mode: isImage ? "icon" : settings.mode,
+        negative_prompt: (
+          isImage ? imageNegative : isReference ? referenceNegative : negative
+        ).trim() || null,
+        mode: isNative ? "icon" : settings.mode,
         output_size: settings.outputSize,
         seed,
         steps: settings.steps,
         cfg: settings.cfg,
         lora_strength: settings.loraStrength,
-        transparent: isImage ? false : settings.transparent,
-        postprocess: isImage ? "quantize" : settings.postprocess,
-        palette_colors: isImage ? 0 : settings.paletteColors,
-        resize_filter: isImage ? "nearest" : settings.resizeFilter,
-        candidates: isImage ? 1 : undefined,
-        checkpoint: isImage ? settings.imageCheckpoint : settings.checkpoint,
-        lora: isImage ? (settings.imageLora ?? "") : settings.lora,
+        transparent: isNative ? false : settings.transparent,
+        postprocess: isNative ? "quantize" : settings.postprocess,
+        palette_colors: isNative ? 0 : settings.paletteColors,
+        resize_filter: isNative ? "nearest" : settings.resizeFilter,
+        candidates: isNative ? 1 : undefined,
+        checkpoint: isReference
+          ? settings.referenceCheckpoint
+          : isImage
+            ? settings.imageCheckpoint
+            : settings.checkpoint,
+        lora: isReference
+          ? (settings.referenceLora ?? "")
+          : isImage
+            ? (settings.imageLora ?? "")
+            : settings.lora,
         kind: targetPage,
-        image_size: settings.imageSize,
+        image_size: isReference ? settings.referenceSize : settings.imageSize,
         translate_prompt: translatePrompt,
+        reference_images: isReference
+          ? referenceItems.map((item) => ({
+              asset_id: item.id,
+              strength: item.strength,
+              focus: item.focus,
+            }))
+          : undefined,
       };
 
       setErrors((current) => ({ ...current, [targetPage]: null }));
@@ -738,7 +926,19 @@ export default function App() {
         }));
       }
     },
-    [page, prompt, imagePrompt, negative, imageNegative, settings, generating, imageTranslation],
+    [
+      page,
+      prompt,
+      imagePrompt,
+      referencePrompt,
+      negative,
+      imageNegative,
+      referenceNegative,
+      settings,
+      generating,
+      nativeTranslation,
+      referenceItems,
+    ],
   );
 
   const handleCancel = useCallback(async () => {
@@ -844,10 +1044,79 @@ export default function App() {
   const handleResetNegative = useCallback(() => {
     if (page === "image") {
       setImageNegative(config?.default_image_negative_prompt ?? DEFAULT_IMAGE_NEGATIVE);
+    } else if (page === "reference") {
+      setReferenceNegative(config?.default_image_negative_prompt ?? DEFAULT_IMAGE_NEGATIVE);
     } else {
       setNegative(config?.default_negative_prompt ?? DEFAULT_NEGATIVE);
     }
   }, [page, config]);
+
+  const handleAddReference = useCallback(
+    (asset: ReferenceAsset) => {
+      setReferenceUploadError(null);
+      setReferenceItems((current) => {
+        if (current.some((item) => item.id === asset.id)) return current;
+        if (current.length >= (config?.reference_max_references ?? 5)) return current;
+        return [
+          ...current,
+          {
+            ...asset,
+            focus: settings.referenceFocus,
+            strength: settings.referenceStrength,
+          },
+        ];
+      });
+    },
+    [config, settings.referenceFocus, settings.referenceStrength],
+  );
+
+  const handleRemoveReference = useCallback((assetId: string) => {
+    setReferenceItems((current) => current.filter((item) => item.id !== assetId));
+  }, []);
+
+  const handleUpdateReference = useCallback(
+    (
+      assetId: string,
+      patch: Partial<Pick<ReferenceItem, "focus" | "strength">>,
+    ) => {
+      setReferenceItems((current) =>
+        current.map((item) => (item.id === assetId ? { ...item, ...patch } : item)),
+      );
+    },
+    [],
+  );
+
+  const handleUploadReference = useCallback(
+    async (file: File, replaceAssetId?: string) => {
+      setReferenceUploading(true);
+      setReferenceUploadError(null);
+      try {
+        const asset = await api.uploadReference(file);
+        if (replaceAssetId) {
+          setReferenceItems((current) =>
+            current.map((item) =>
+              item.id === replaceAssetId
+                ? {
+                    ...asset,
+                    focus: item.focus,
+                    strength: item.strength,
+                  }
+                : item,
+            ),
+          );
+        } else {
+          handleAddReference(asset);
+        }
+      } catch (cause) {
+        setReferenceUploadError(
+          cause instanceof Error ? cause.message : "참고 이미지 업로드에 실패했습니다.",
+        );
+      } finally {
+        setReferenceUploading(false);
+      }
+    },
+    [handleAddReference],
+  );
 
   const handleRefreshModels = useCallback(async () => {
     try {
@@ -974,8 +1243,18 @@ export default function App() {
     healthError ??
     health?.comfyui.error ??
     "ComfyUI가 시작 중이거나 연결이 끊겼습니다. 잠시 후 자동으로 다시 확인합니다.";
-  const headerCheckpoint = page === "image" ? settings.imageCheckpoint : settings.checkpoint;
-  const headerLora = page === "image" ? (settings.imageLora ?? "") : settings.lora;
+  const headerCheckpoint =
+    page === "image"
+      ? settings.imageCheckpoint
+      : page === "reference"
+        ? settings.referenceCheckpoint
+        : settings.checkpoint;
+  const headerLora =
+    page === "image"
+      ? (settings.imageLora ?? "")
+      : page === "reference"
+        ? (settings.referenceLora ?? "")
+        : settings.lora;
 
   return (
     <div className="app-shell">
@@ -1025,6 +1304,21 @@ export default function App() {
           </span>
           <span className="mode-tab-index">02</span>
         </button>
+        <button
+          type="button"
+          className={`mode-tab ${page === "reference" ? "active" : ""}`}
+          aria-pressed={page === "reference"}
+          onClick={() => setPage("reference")}
+        >
+          <span className="mode-tab-icon">
+            <ImageIcon size={19} />
+          </span>
+          <span className="mode-tab-copy">
+            <strong>이미지to이미지 느낌</strong>
+            <small>참고 이미지 반영 · IP-Adapter Plus</small>
+          </span>
+          <span className="mode-tab-index">03</span>
+        </button>
       </nav>
 
       {comfyDown && (
@@ -1044,22 +1338,58 @@ export default function App() {
 
       <main className="workspace">
         <div className="left-column">
+          {page === "reference" && (
+            <ReferencePanel
+              items={referenceItems}
+              samples={referenceSamples}
+              capabilities={referenceCapabilities}
+              samplesLoading={referenceSamplesLoading}
+              capabilitiesLoading={referenceCapabilitiesLoading}
+              capabilitiesError={referenceCapabilitiesError}
+              checkpoint={settings.referenceCheckpoint}
+              maxReferences={config?.reference_max_references ?? 5}
+              busy={generating[page]}
+              uploading={referenceUploading}
+              uploadError={referenceUploadError}
+              onAddAsset={handleAddReference}
+              onUploadFile={(file, replaceId) => void handleUploadReference(file, replaceId)}
+              onUpdateItem={handleUpdateReference}
+              onRemoveItem={handleRemoveReference}
+              onRefreshSamples={() => void loadReferenceSamples()}
+              onRefreshCapabilities={() => void loadReferenceCapabilities()}
+            />
+          )}
           <PromptPanel
             kind={page}
             prompt={activePrompt}
             negativePrompt={activeNegative}
-            onPromptChange={page === "image" ? setImagePrompt : setPrompt}
-            onNegativeChange={page === "image" ? setImageNegative : setNegative}
+            onPromptChange={
+              page === "image"
+                ? setImagePrompt
+                : page === "reference"
+                  ? setReferencePrompt
+                  : setPrompt
+            }
+            onNegativeChange={
+              page === "image"
+                ? setImageNegative
+                : page === "reference"
+                  ? setReferenceNegative
+                  : setNegative
+            }
             onResetNegative={handleResetNegative}
             onGenerate={() => void submit()}
             onCancel={() => void handleCancel()}
             busy={generating[page]}
-            canGenerate={activePrompt.trim().length > 0}
+            canGenerate={
+              activePrompt.trim().length > 0 &&
+              (page !== "reference" || referenceItems.length > 0)
+            }
             autoTranslate={settings.autoTranslate}
             onAutoTranslateChange={(value) =>
               setSettings((current) => ({ ...current, autoTranslate: value }))
             }
-            translation={page === "image" ? imageTranslation : null}
+            translation={isNativePage ? nativeTranslation : null}
           />
           <StatusPanel
             kind={page}

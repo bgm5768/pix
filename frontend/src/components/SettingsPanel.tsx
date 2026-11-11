@@ -153,24 +153,35 @@ export function SettingsPanel({
   onRandomSeed,
 }: SettingsPanelProps) {
   const isImage = kind === "image";
+  const isReference = kind === "reference";
+  const isNative = isImage || isReference;
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [expandedDownload, setExpandedDownload] = useState<string | null>(null);
   const paletteDisabled = settings.postprocess === "nearest";
   const allCheckpoints = models?.checkpoints ?? [];
   const allLoras = models?.loras ?? [];
-  const modelCategory = isImage ? "image" : "pixel";
+  const modelCategory = isNative ? "image" : "pixel";
   const checkpointOptions = allCheckpoints.filter(
     (item) => item.category === modelCategory && item.compatible,
   );
   const loraOptions = allLoras.filter((item) => item.category === modelCategory);
-  const selectedCheckpoint = isImage
-    ? (settings.imageCheckpoint ?? "")
-    : (settings.checkpoint ?? models?.checkpoint.name ?? "");
-  const selectedLora = isImage
-    ? (settings.imageLora ?? "")
-    : settings.lora === null
-      ? (models?.lora.name ?? "")
-      : settings.lora;
+  const selectedCheckpoint = isReference
+    ? (settings.referenceCheckpoint ?? "")
+    : isImage
+      ? (settings.imageCheckpoint ?? "")
+      : (settings.checkpoint ?? models?.checkpoint.name ?? "");
+  const selectedLora = isReference
+    ? (settings.referenceLora ?? "")
+    : isImage
+      ? (settings.imageLora ?? "")
+      : settings.lora === null
+        ? (models?.lora.name ?? "")
+        : settings.lora;
+  const selectedSize = isReference
+    ? settings.referenceSize
+    : isImage
+      ? settings.imageSize
+      : settings.outputSize;
   const checkpointFile = allCheckpoints.find((item) => item.name === selectedCheckpoint);
   const loraFile = selectedLora ? allLoras.find((item) => item.name === selectedLora) : undefined;
   const recommendedSteps = checkpointFile?.recommended_steps ?? 28;
@@ -237,9 +248,11 @@ export function SettingsPanel({
     ? checkpointReady
       ? "READY"
       : checkpointFile
-        ? isImage
-          ? "NOT IMAGE"
-          : "INCOMPATIBLE"
+        ? isReference
+          ? "NOT SDXL"
+          : isImage
+            ? "NOT IMAGE"
+            : "INCOMPATIBLE"
         : "MISSING"
     : modelsError
       ? "OFFLINE"
@@ -261,11 +274,13 @@ export function SettingsPanel({
       <div className="panel-head">
         <div>
           <span className="eyebrow">02 · SETTINGS</span>
-          <h2>{isImage ? "이미지 설정" : "생성 설정"}</h2>
+          <h2>
+            {isReference ? "레퍼런스 설정" : isImage ? "이미지 설정" : "생성 설정"}
+          </h2>
         </div>
         <span className="micro-badge">
-          {isImage
-            ? `${settings.imageSize}×${settings.imageSize} PX`
+          {isNative
+            ? `${selectedSize}×${selectedSize} PX`
             : `${settings.outputSize}×${settings.outputSize} PX`}
         </span>
       </div>
@@ -294,22 +309,24 @@ export function SettingsPanel({
               value={selectedCheckpoint}
               onChange={(event) =>
                 onChange(
-                  isImage
-                    ? { imageCheckpoint: event.target.value || null }
-                    : { checkpoint: event.target.value || null },
+                  isReference
+                    ? { referenceCheckpoint: event.target.value || null }
+                    : isImage
+                      ? { imageCheckpoint: event.target.value || null }
+                      : { checkpoint: event.target.value || null },
                 )
               }
               title={selectedCheckpoint}
             >
               {!selectedCheckpoint && (
                 <option value="">
-                  {isImage ? "이미지 체크포인트 없음" : "체크포인트 없음"}
+                  {isNative ? "체크포인트 없음" : "체크포인트 없음"}
                 </option>
               )}
               {selectedCheckpoint && !checkpointReady && (
                 <option value={selectedCheckpoint}>
                   {selectedCheckpoint} ·{" "}
-                  {checkpointFile ? (isImage ? "이미지용 아님" : "픽셀용 아님") : "없음"}
+                  {checkpointFile ? (isNative ? "이미지용 아님" : "픽셀용 아님") : "없음"}
                 </option>
               )}
               {checkpointOptions.map((item) => (
@@ -337,9 +354,11 @@ export function SettingsPanel({
               value={selectedLora}
               onChange={(event) =>
                 onChange(
-                  isImage
-                    ? { imageLora: event.target.value }
-                    : { lora: event.target.value },
+                  isReference
+                    ? { referenceLora: event.target.value }
+                    : isImage
+                      ? { imageLora: event.target.value }
+                      : { lora: event.target.value },
                 )
               }
               title={selectedLora || "LoRA 사용 안 함"}
@@ -374,17 +393,20 @@ export function SettingsPanel({
 
         <div className="model-catalog">
           <span>
-            {isImage ? "이미지" : "픽셀"} 체크포인트 {checkpointOptions.length}개
+            {isReference ? "레퍼런스" : isImage ? "이미지" : "픽셀"} 체크포인트{" "}
+            {checkpointOptions.length}개
           </span>
           <span>
-            {isImage ? "이미지" : "픽셀"} LoRA {loraOptions.length}개
+            {isReference ? "레퍼런스" : isImage ? "이미지" : "픽셀"} LoRA {loraOptions.length}개
           </span>
           <span>선택 즉시 적용</span>
         </div>
         <p className="setting-note model-note">
-          {isImage
-            ? "이미지 페이지에는 SDXL 호환 일반 모델만 표시됩니다. LoRA를 고르면 트리거 단어만 프롬프트 끝에 자동 추가되며, 나머지 문구는 필터링 없이 그대로 ComfyUI로 전달됩니다."
-            : "픽셀 페이지에는 파일명에 pixel/sprite 계열 키워드가 있는 모델만 표시됩니다. 다른 페이지용 모델은 목록에서 숨겨집니다."}
+          {isReference
+            ? "레퍼런스 페이지는 SDXL 계열 체크포인트에 IP-Adapter Plus를 얹어 참고 이미지의 외형·화풍·구도를 주입합니다. SDXL 계열(NoobAI, Illustrious 포함)만 호환되며, 설정은 이미지 페이지와 따로 저장됩니다."
+            : isImage
+              ? "이미지 페이지에는 SDXL 호환 일반 모델만 표시됩니다. LoRA를 고르면 트리거 단어만 프롬프트 끝에 자동 추가되며, 나머지 문구는 필터링 없이 그대로 ComfyUI로 전달됩니다."
+              : "픽셀 페이지에는 파일명에 pixel/sprite 계열 키워드가 있는 모델만 표시됩니다. 다른 페이지용 모델은 목록에서 숨겨집니다."}
         </p>
 
         <div className="model-downloads">
@@ -555,7 +577,7 @@ export function SettingsPanel({
         </div>
       </div>
 
-      {!isImage && (
+      {!isNative && (
         <div className="setting-block">
           <span className="field-label">ASSET MODE</span>
           <select
@@ -576,16 +598,20 @@ export function SettingsPanel({
 
       <div className="setting-block">
         <span className="field-label">
-          {isImage ? "IMAGE RESOLUTION" : "OUTPUT RESOLUTION"}
+          {isNative ? "IMAGE RESOLUTION" : "OUTPUT RESOLUTION"}
         </span>
         <div className="size-grid">
-          {isImage
+          {isNative
             ? imageSizes.map((size) => (
                 <button
                   key={size}
                   type="button"
-                  className={`size-button ${settings.imageSize === size ? "active" : ""}`}
-                  onClick={() => onChange({ imageSize: size })}
+                  className={`size-button ${selectedSize === size ? "active" : ""}`}
+                  onClick={() =>
+                    onChange(
+                      isReference ? { referenceSize: size } : { imageSize: size },
+                    )
+                  }
                 >
                   <span>{size}</span>
                   <small>px</small>
@@ -604,9 +630,11 @@ export function SettingsPanel({
               ))}
         </div>
         <p className="setting-note">
-          {isImage
-            ? "SDXL 원본 이미지를 선택한 해상도로 저장합니다. 1024px가 가장 선명합니다."
-            : "작을수록 실루엣이 선명하고, 96~128px은 디테일과 팔레트를 더 살립니다."}
+          {isReference
+            ? "참고 조건은 1024px에서 가장 안정적으로 반영됩니다. 512px는 빠르지만 세부 디테일이 줄어듭니다."
+            : isImage
+              ? "SDXL 원본 이미지를 선택한 해상도로 저장합니다. 1024px가 가장 선명합니다."
+              : "작을수록 실루엣이 선명하고, 96~128px은 디테일과 팔레트를 더 살립니다."}
         </p>
       </div>
 
@@ -689,7 +717,7 @@ export function SettingsPanel({
         {!loraFile && " · LoRA 미사용"}
       </p>
 
-      {!isImage && (
+      {!isNative && (
         <>
           <div className="setting-block">
             <div className="field-label-row">
@@ -762,12 +790,13 @@ export function SettingsPanel({
         </>
       )}
 
-      {isImage && (
+      {isNative && (
         <div className="prompt-hint settings-hint">
           <PaletteIcon size={15} />
           <span>
-            이미지 페이지는 SDXL 원본 PNG를 저장합니다. 팔레트 양자화·배경 제거·니어리스트
-            축소는 적용되지 않습니다.
+            {isReference
+              ? "레퍼런스 페이지는 SDXL 원본 PNG를 저장합니다. 픽셀 팔레트 양자화·배경 제거·니어리스트 축소는 적용되지 않고, 참고 이미지의 조건만 프롬프트와 함께 모델에 주입됩니다."
+              : "이미지 페이지는 SDXL 원본 PNG를 저장합니다. 팔레트 양자화·배경 제거·니어리스트 축소는 적용되지 않습니다."}
           </span>
         </div>
       )}

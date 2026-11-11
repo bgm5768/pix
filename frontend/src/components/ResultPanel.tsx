@@ -48,6 +48,8 @@ const EMPTY_PIXELS = [
 
 export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: ResultPanelProps) {
   const isImage = kind === "image";
+  const isReference = kind === "reference";
+  const isNative = isImage || isReference;
   const result = display?.result ?? null;
   const scale = result?.preview_scale ?? 1;
   const imageSrc = result?.image_url ?? result?.preview_url;
@@ -58,13 +60,16 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
       <div className="panel-head">
         <div>
           <span className="eyebrow">04 · RESULT</span>
-          <h2>{isImage ? "이미지 결과" : "도트 결과"}</h2>
+          <h2>
+            {isReference ? "레퍼런스 결과" : isImage ? "이미지 결과" : "도트 결과"}
+          </h2>
         </div>
         <div className="result-head-badges">
-          {!isImage && result?.transparent && (
+          {!isNative && result?.transparent && (
             <span className="micro-badge magenta">TRANSPARENT</span>
           )}
           {isImage && result && <span className="micro-badge cyan">SDXL NATIVE</span>}
+          {isReference && result && <span className="micro-badge cyan">IP-ADAPTER</span>}
           <span className="micro-badge">
             {result ? `${result.width}×${result.height} PX` : "NO OUTPUT"}
           </span>
@@ -80,31 +85,46 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
               )),
             )}
           </div>
-          <h3>{isImage ? "아직 생성된 이미지가 없습니다" : "아직 생성된 도트가 없습니다"}</h3>
+          <h3>
+            {isReference
+              ? "아직 생성된 레퍼런스 이미지가 없습니다"
+              : isImage
+                ? "아직 생성된 이미지가 없습니다"
+                : "아직 생성된 도트가 없습니다"}
+          </h3>
           <p>
-            왼쪽에 프롬프트를 입력하고 <strong>{isImage ? "이미지 생성" : "도트 생성"}</strong>을
-            눌러 보세요.
+            왼쪽에 프롬프트를 입력하고{" "}
+            <strong>
+              {isReference ? "레퍼런스 생성" : isImage ? "이미지 생성" : "도트 생성"}
+            </strong>
+            을 눌러 보세요.
             <br />
-            {isImage
-              ? "SDXL이 만든 원본 이미지를 PNG로 저장합니다."
-              : "생성된 결과는 실제 픽셀 크기 그대로 PNG로 저장됩니다."}
+            {isReference
+              ? "참고 이미지의 조건이 새 이미지에 반영됩니다."
+              : isImage
+                ? "SDXL이 만든 원본 이미지를 PNG로 저장합니다."
+                : "생성된 결과는 실제 픽셀 크기 그대로 PNG로 저장됩니다."}
           </p>
         </div>
       ) : (
         <>
-          <div className={`preview-stage ${isImage ? "image-stage" : "checker"}`}>
+          <div className={`preview-stage ${isNative ? "image-stage" : "checker"}`}>
             <img
-              className={`preview-image ${isImage ? "image-preview" : ""}`}
-              src={assetUrl(isImage ? imageSrc : pixelSrc)}
+              className={`preview-image ${isNative ? "image-preview" : ""}`}
+              src={assetUrl(isNative ? imageSrc : pixelSrc)}
               alt={
-                isImage
+                isNative
                   ? `${result.width}×${result.height} 생성 이미지`
                   : `${result.width}×${result.height} 픽셀아트 결과`
               }
-              style={isImage ? undefined : { imageRendering: "pixelated" }}
+              style={isNative ? undefined : { imageRendering: "pixelated" }}
             />
             <span className="preview-tag top-left">
-              {isImage ? "SDXL · NATIVE" : `×${scale} NEAREST`}
+              {isReference
+                ? "IP-ADAPTER · REFERENCE"
+                : isNative
+                  ? "SDXL · NATIVE"
+                  : `×${scale} NEAREST`}
             </span>
             <span className="preview-tag bottom-right">
               {result.width} × {result.height} px
@@ -112,12 +132,37 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
             {busy && (
               <div className="preview-busy">
                 <span className="spinner" />
-                {isImage ? "새 이미지를 만드는 중..." : "새 도트를 만드는 중..."}
+                {isNative ? "새 이미지를 만드는 중..." : "새 도트를 만드는 중..."}
               </div>
             )}
           </div>
 
-          {!isImage && (
+          {isReference && result.references && result.references.length > 0 && (
+            <div className="reference-used">
+              <div className="reference-used-head">
+                <strong>적용된 참고 이미지</strong>
+                <span>{result.references.length}장</span>
+              </div>
+              <ul className="reference-used-list">
+                {result.references.map((reference) => (
+                  <li key={reference.asset_id}>
+                    <img src={assetUrl(reference.url)} alt={reference.name} />
+                    <div>
+                      <strong>{reference.name}</strong>
+                      <span>
+                        {reference.focus} · ×{reference.strength.toFixed(2)}
+                      </span>
+                      {reference.analysis_summary && (
+                        <small>{reference.analysis_summary}</small>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {!isNative && (
             <div className="compare-grid compare-grid-4">
               <figure>
                 <div className="compare-frame checker">
@@ -165,13 +210,16 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
             <span className="meta-chip">
               <SparkIcon size={13} /> Seed {display.seed ?? "—"}
             </span>
-            {isImage ? (
+            {isNative ? (
               <>
                 <span className="meta-chip">
                   <PaletteIcon size={13} />
                   {result.width}×{result.height} 원본 PNG
                 </span>
                 <span className="meta-chip">픽셀 후처리 없음</span>
+                {isReference && result.references && result.references.length > 0 && (
+                  <span className="meta-chip">참고 이미지 {result.references.length}장</span>
+                )}
               </>
             ) : (
               <>
@@ -207,7 +255,7 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
             </p>
           )}
 
-          {!isImage && display.promptPlan && (
+          {!isNative && display.promptPlan && (
             <details className="plan-details">
               <summary>
                 프롬프트 구조 · {display.promptPlan.source === "llm" ? "로컬 LLM" : "템플릿"}
@@ -234,7 +282,7 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
             </details>
           )}
 
-          {!isImage && result.quality.length > 0 && (
+          {!isNative && result.quality.length > 0 && (
             <div className="quality-panel">
               <div className="quality-head">
                 <strong>자동 검증</strong>
@@ -272,7 +320,9 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
               download={
                 isImage
                   ? `pixelforge_${display.jobId}_image_${result.width}px.png`
-                  : `pixelforge_${display.jobId}_${result.width}px.png`
+                  : isReference
+                    ? `pixelforge_${display.jobId}_reference_${result.width}px.png`
+                    : `pixelforge_${display.jobId}_${result.width}px.png`
               }
             >
               <DownloadIcon size={17} />

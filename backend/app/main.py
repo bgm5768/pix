@@ -150,6 +150,14 @@ outputs_root = PROJECT_ROOT / "outputs"
 outputs_root.mkdir(parents=True, exist_ok=True)
 app.mount("/files", StaticFiles(directory=str(outputs_root)), name="files")
 
+_reference_samples_root = get_settings().reference_samples_dir
+_reference_samples_root.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/reference-samples",
+    StaticFiles(directory=str(_reference_samples_root)),
+    name="reference-samples",
+)
+
 frontend_dist = PROJECT_ROOT / "frontend" / "dist"
 assets_dir = frontend_dist / "assets"
 if assets_dir.exists():

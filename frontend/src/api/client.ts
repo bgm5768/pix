@@ -11,6 +11,9 @@ import type {
   ModelDownloadItem,
   OutputsResponse,
   PageKind,
+  ReferenceAsset,
+  ReferenceCapabilities,
+  ReferenceSamplesResponse,
   SystemStatusResponse,
   TranslateResponse,
 } from "../types";
@@ -149,6 +152,48 @@ export const api = {
       `/api/models/downloads/${encodeURIComponent(downloadId)}/cancel`,
       { method: "POST" },
     ),
+  getReferenceSamples: () => request<ReferenceSamplesResponse>("/api/references/samples"),
+  getReferenceCapabilities: (checkpoint?: string | null) =>
+    request<ReferenceCapabilities>(
+      checkpoint
+        ? `/api/references/capabilities?checkpoint=${encodeURIComponent(checkpoint)}`
+        : "/api/references/capabilities",
+    ),
+  uploadReference: async (file: File): Promise<ReferenceAsset> => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    let response: Response;
+    try {
+      response = await fetch(`${getApiBase()}/api/references/upload`, {
+        method: "POST",
+        body: form,
+      });
+    } catch {
+      throw new ApiError(
+        "백엔드 서버에 연결할 수 없습니다. start.bat이 실행 중인지 확인해 주세요.",
+        0,
+        "BACKEND_UNREACHABLE",
+      );
+    }
+    const text = await response.text();
+    let data: unknown = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    }
+    if (!response.ok) {
+      const payload = (data ?? {}) as { detail?: unknown; code?: string; extra?: string | null };
+      const detail =
+        typeof payload.detail === "string"
+          ? payload.detail
+          : `업로드에 실패했습니다. (HTTP ${response.status})`;
+      throw new ApiError(detail, response.status, payload.code, payload.extra ?? null);
+    }
+    return data as ReferenceAsset;
+  },
 };
 
 export function downloadUrl(jobId: string): string {

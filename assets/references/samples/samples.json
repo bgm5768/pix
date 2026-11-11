@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sample_portrait",
+    "file": "sample_portrait.png",
+    "name": "인물 초상",
+    "hint": "얼굴·외형 참고용 인물 사진"
+  },
+  {
+    "id": "sample_animal",
+    "file": "sample_animal.png",
+    "name": "동물 야생",
+    "hint": "동물 외형·질감 참고용 사진"
+  },
+  {
+    "id": "sample_style",
+    "file": "sample_style.png",
+    "name": "화풍 · 수채화",
+    "hint": "화풍·그림체 참고용 일러스트"
+  },
+  {
+    "id": "sample_scene",
+    "file": "sample_scene.png",
+    "name": "장면 · 구도",
+    "hint": "구도·공간 배치 참고용 장면"
+  }
+]

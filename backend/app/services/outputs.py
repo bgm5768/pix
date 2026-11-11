@@ -15,6 +15,7 @@ from app.schemas.models import (
     OutputItem,
     OutputsResponse,
     QualityCheck,
+    ReferenceUsage,
     ResultInfo,
 )
 from app.services.postprocess import PostProcessResult
@@ -192,7 +193,57 @@ def image_result_info(
     warnings: list[str] | None = None,
 ) -> ResultInfo:
     """Result metadata for the image generator page (no pixel postprocess)."""
+    return native_result_info(
+        settings,
+        job_id,
+        image_size,
+        kind="image",
+        mode=mode,
+        candidates_generated=candidates_generated,
+        candidate_index=candidate_index,
+        warnings=warnings,
+    )
+
+
+def reference_result_info(
+    settings: Settings,
+    job_id: str,
+    image_size: int,
+    references: list[ReferenceUsage] | None = None,
+    mode: str = "icon",
+    candidates_generated: int = 1,
+    candidate_index: int = 0,
+    warnings: list[str] | None = None,
+) -> ResultInfo:
+    """Result metadata for the reference-conditioned image page."""
+    return native_result_info(
+        settings,
+        job_id,
+        image_size,
+        kind="reference",
+        references=references,
+        mode=mode,
+        candidates_generated=candidates_generated,
+        candidate_index=candidate_index,
+        warnings=warnings,
+    )
+
+
+def native_result_info(
+    settings: Settings,
+    job_id: str,
+    image_size: int,
+    kind: str = "image",
+    references: list[ReferenceUsage] | None = None,
+    mode: str = "icon",
+    candidates_generated: int = 1,
+    candidate_index: int = 0,
+    warnings: list[str] | None = None,
+) -> ResultInfo:
+    """Shared result metadata for native SDXL pages (image/reference)."""
     _safe_job_id(job_id)
+    if kind not in {"image", "reference"}:
+        kind = "image"
     image_url = f"/files/images/{job_id}_image_{image_size}.png"
     preview_url = f"/files/image_previews/{job_id}_image_preview_{image_size}.png"
     return ResultInfo(
@@ -200,7 +251,7 @@ def image_result_info(
         preview_url=preview_url,
         image_url=image_url,
         image_preview_url=preview_url,
-        download_url=f"/api/download/{job_id}?kind=image",
+        download_url=f"/api/download/{job_id}?kind={kind}",
         width=int(image_size),
         height=int(image_size),
         preview_scale=1,
@@ -208,13 +259,14 @@ def image_result_info(
         transparent=False,
         postprocess="quantize",
         mode=_asset_mode(mode),  # type: ignore[arg-type]
-        kind="image",
+        kind=kind,  # type: ignore[arg-type]
         quality=[],
         warnings=list(warnings or []),
         candidates_generated=max(1, int(candidates_generated)),
         candidate_index=max(0, int(candidate_index)),
         candidate_score=0.0,
         panel_suspected=False,
+        references=list(references or []),
     )
 
 
@@ -298,7 +350,23 @@ def _list_pixel_outputs(settings: Settings, limit: int) -> OutputsResponse:
     return OutputsResponse(items=items, total=len(files))
 
 
-def _list_image_outputs(settings: Settings, limit: int) -> OutputsResponse:
+def _load_references(meta: dict[str, Any]) -> list[ReferenceUsage]:
+    raw = meta.get("references")
+    if not isinstance(raw, list):
+        return []
+    items: list[ReferenceUsage] = []
+    for entry in raw:
+        if isinstance(entry, ReferenceUsage):
+            items.append(entry)
+        elif isinstance(entry, dict):
+            try:
+                items.append(ReferenceUsage.model_validate(entry))
+            except Exception:
+                continue
+    return items
+
+
+def _list_native_outputs(settings: Settings, limit: int, kind: str) -> OutputsResponse:
     files = sorted(
         settings.images_dir.glob("*_image_*.png"),
         key=lambda item: item.stat().st_mtime,
@@ -313,7 +381,8 @@ def _list_image_outputs(settings: Settings, limit: int) -> OutputsResponse:
         if size is None:
             continue
         meta = load_metadata(settings, job_id) or {}
-        if str((meta.get("request") or {}).get("kind") or "") != "image":
+        meta_kind = str(meta.get("kind") or (meta.get("request") or {}).get("kind") or "image")
+        if meta_kind != kind:
             continue
         created_at = _created_at(meta, image_path)
 
@@ -331,7 +400,7 @@ def _list_image_outputs(settings: Settings, limit: int) -> OutputsResponse:
                 image_url=f"/files/images/{image_path.name}",
                 preview_url=preview_url,
                 original_url=f"/files/originals/{original_path.name}",
-                download_url=f"/api/download/{job_id}?kind=image",
+                download_url=f"/api/download/{job_id}?kind={kind}",
                 width=size,
                 height=size,
                 created_at=created_at,
@@ -340,7 +409,7 @@ def _list_image_outputs(settings: Settings, limit: int) -> OutputsResponse:
                 transparent=False,
                 postprocess="quantize",
                 mode=_asset_mode(request.get("mode") or meta.get("mode")),  # type: ignore[arg-type]
-                kind="image",
+                kind=kind,  # type: ignore[arg-type]
                 output_size=size,
                 palette_colors=0,
                 subject_fill=0.0,
@@ -350,6 +419,7 @@ def _list_image_outputs(settings: Settings, limit: int) -> OutputsResponse:
                 candidate_index=int(meta.get("selected_candidate") or 0),
                 candidate_score=0.0,
                 panel_suspected=False,
+                references=_load_references(meta),
             )
         )
     return OutputsResponse(items=items, total=len(files))
@@ -357,14 +427,14 @@ def _list_image_outputs(settings: Settings, limit: int) -> OutputsResponse:
 
 def list_outputs(settings: Settings, limit: int = 30, kind: str = "pixel") -> OutputsResponse:
     limit = max(1, min(100, int(limit)))
-    if kind == "image":
-        return _list_image_outputs(settings, limit)
+    if kind in {"image", "reference"}:
+        return _list_native_outputs(settings, limit, kind)
     return _list_pixel_outputs(settings, limit)
 
 
 def find_download_path(settings: Settings, job_id: str, kind: str = "pixel") -> Path | None:
     _safe_job_id(job_id)
-    if kind == "image":
+    if kind in {"image", "reference"}:
         candidates = sorted(
             settings.images_dir.glob(f"{job_id}_image_*.png"),
             key=lambda item: item.stat().st_mtime,

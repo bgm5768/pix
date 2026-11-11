@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, File, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.config import Settings
@@ -25,6 +25,9 @@ from app.schemas.models import (
     ModelStatus,
     OutputsResponse,
     QueueStatus,
+    ReferenceAsset,
+    ReferenceCapabilities,
+    ReferenceSamplesResponse,
     SystemStatusResponse,
     TranslateRequest,
     TranslateResponse,
@@ -35,6 +38,11 @@ from app.services.job_manager import JobManager
 from app.services.model_catalog import model_files
 from app.services.model_downloads import ModelDownloadManager
 from app.services.outputs import delete_output, find_download_path, list_outputs
+from app.services.references import (
+    get_reference_capabilities,
+    list_sample_assets,
+    save_reference_upload,
+)
 from app.services.system_monitor import SystemMonitor
 
 router = APIRouter(prefix="/api", tags=["pixelforge"])
@@ -72,6 +80,30 @@ async def translate_prompt(payload: TranslateRequest, request: Request) -> Trans
         elapsed_ms=result.elapsed_ms,
         error=result.error,
     )
+
+
+@router.get("/references/samples", response_model=ReferenceSamplesResponse)
+async def reference_samples(request: Request) -> ReferenceSamplesResponse:
+    return ReferenceSamplesResponse(items=list_sample_assets(_settings(request)))
+
+
+@router.post("/references/upload", response_model=ReferenceAsset)
+async def upload_reference(request: Request, file: UploadFile = File(...)) -> ReferenceAsset:
+    content = await file.read()
+    return await asyncio.to_thread(
+        save_reference_upload,
+        _settings(request),
+        content,
+        file.filename or "reference.png",
+    )
+
+
+@router.get("/references/capabilities", response_model=ReferenceCapabilities)
+async def reference_capabilities(
+    request: Request,
+    checkpoint: str | None = Query(default=None),
+) -> ReferenceCapabilities:
+    return await get_reference_capabilities(_settings(request), _comfy(request), checkpoint)
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -154,13 +186,15 @@ async def download_output(
     if path is None:
         message = (
             "저장할 이미지를 찾을 수 없습니다."
-            if kind == "image"
+            if kind in {"image", "reference"}
             else "저장할 픽셀 이미지를 찾을 수 없습니다."
         )
         raise JobNotFoundError(message)
     size = path.stem.rsplit("_", 1)[-1]
     if kind == "image":
         filename = f"pixelforge_{job_id}_image_{size}px.png"
+    elif kind == "reference":
+        filename = f"pixelforge_{job_id}_reference_{size}px.png"
     else:
         filename = f"pixelforge_{job_id}_{size}px.png"
     return FileResponse(path, media_type="image/png", filename=filename)
@@ -279,6 +313,12 @@ async def config(request: Request) -> dict:
         "image_lora": generation.image_lora,
         "default_image_candidates": generation.image_default_candidates,
         "default_image_negative_prompt": generation.image_negative_prompt,
+        "reference_checkpoint": generation.reference_checkpoint,
+        "reference_lora": generation.reference_lora,
+        "reference_default_size": generation.reference_default_size,
+        "reference_default_strength": generation.reference_default_strength,
+        "reference_default_focus": generation.reference_default_focus,
+        "reference_max_references": generation.reference_max_references,
         "default_negative_prompt": generation.negative_prompt,
         "translation_enabled": settings.translation.enabled,
         "translation_model": Path(settings.translation.model_dir).name,

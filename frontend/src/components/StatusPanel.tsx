@@ -39,6 +39,7 @@ export function StatusPanel({
   onCancel,
 }: StatusPanelProps) {
   const isImage = kind === "image";
+  const isReference = kind === "reference";
   const active = Boolean(jobId);
   const status = job?.status ?? (active ? "queued" : "idle");
   const currentIndex = STAGE_INDEX[status] ?? -1;
@@ -81,8 +82,11 @@ export function StatusPanel({
           <div>
             <strong>GPU 대기 중</strong>
             <p>
-              프롬프트를 입력하고 {isImage ? "이미지 생성" : "도트 생성"}을 누르면 로컬
-              ComfyUI에서 {isImage ? "SDXL 이미지를" : "도트를"} 만듭니다.
+              {isReference
+                ? "참고 이미지를 고르고 프롬프트를 입력한 뒤 레퍼런스 생성을 누르면 로컬 ComfyUI에서 참고 조건을 반영한 이미지를 만듭니다."
+                : `프롬프트를 입력하고 ${isImage ? "이미지 생성" : "도트 생성"}을 누르면 로컬 ComfyUI에서 ${
+                    isImage ? "SDXL 이미지를" : "도트를"
+                  } 만듭니다.`}
             </p>
           </div>
         </div>
@@ -155,8 +159,13 @@ export function StatusPanel({
         <div className="success-box">
           <CheckIcon size={16} />
           <span>
-            생성 완료. {isImage ? "원본 이미지를 PNG로" : "결과를 PNG로"} 저장하거나 다시
-            생성해 보세요.
+            생성 완료.{" "}
+            {isReference
+              ? "참고 조건이 반영된 원본 이미지를 PNG로"
+              : isImage
+                ? "원본 이미지를 PNG로"
+                : "결과를 PNG로"}{" "}
+            저장하거나 다시 생성해 보세요.
           </span>
         </div>
       )}

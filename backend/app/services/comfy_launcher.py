@@ -23,6 +23,7 @@ _MODEL_FOLDERS = [
     "text_encoders",
     "clip",
     "clip_vision",
+    "ipadapter",
     "controlnet",
     "embeddings",
     "upscale_models",
