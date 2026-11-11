@@ -92,11 +92,13 @@ export function JobList({
                   type="button"
                   className="job-row-main"
                   onClick={() => onSelect(job)}
-                  disabled={busy || job.status !== "completed" || !job.result}
+                  disabled={!busy && (job.status !== "completed" || !job.result)}
                   title={
-                    job.status === "completed" && job.result
-                      ? "결과 보기"
-                      : job.stage_message
+                    busy
+                      ? "진행 상황 보기"
+                      : job.status === "completed" && job.result
+                        ? "결과 보기"
+                        : job.stage_message
                   }
                 >
                   <span className={`job-status status-${job.status}`}>

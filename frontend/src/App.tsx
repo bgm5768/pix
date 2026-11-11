@@ -794,8 +794,18 @@ export default function App() {
   );
 
   const handleSelectJob = useCallback((job: JobView) => {
-    if (job.status !== "completed" || !job.result) return;
     const kind = job.request.kind;
+    if (isActiveJob(job.status)) {
+      // Jump to the page that owns the live job so its progress panel is shown.
+      setPage(kind);
+      setJobs((current) => ({ ...current, [kind]: job }));
+      setJobIds((current) => ({ ...current, [kind]: job.job_id }));
+      setGenerating((current) => ({ ...current, [kind]: true }));
+      setErrors((current) => ({ ...current, [kind]: null }));
+      setNotices((current) => ({ ...current, [kind]: null }));
+      return;
+    }
+    if (job.status !== "completed" || !job.result) return;
     setPage(kind);
     setDisplays((current) => ({
       ...current,
