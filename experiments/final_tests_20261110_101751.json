@@ -1,0 +1,1823 @@
+[
+  {
+    "case": "library",
+    "prompt": "도서관 아이콘 만들어줘",
+    "mode": "icon",
+    "size": 32,
+    "palette_requested": 16,
+    "job_id": "1ac9d3f52a25",
+    "status": "completed",
+    "seed": 1234570,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 3,
+    "candidate_score": 98.61,
+    "panel_suspected": false,
+    "subject": "library building with large windows and columns",
+    "source": "template",
+    "prompt_used": "pixel art of one single library building with large windows and columns, one complete object visible, centered composition, front view, entire object in frame, game asset icon, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/1ac9d3f52a25_pixel_32.png",
+      "cutout_url": "/files/cutouts/1ac9d3f52a25_cutout.png",
+      "crop_url": "/files/crops/1ac9d3f52a25_crop.png",
+      "preview_url": "/files/previews/1ac9d3f52a25_preview_32.png",
+      "original_url": "/files/originals/1ac9d3f52a25_original.png",
+      "subject_fill": 0.8125,
+      "palette_colors": 16,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#4)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "81%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.5px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 51%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "32×32",
+          "message": "32×32 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×16 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "16색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        32,
+        32
+      ],
+      "bbox": [
+        4,
+        3,
+        27,
+        29
+      ],
+      "fill": 0.8125,
+      "opaque_ratio": 0.5107421875,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 16
+    }
+  },
+  {
+    "case": "library",
+    "prompt": "도서관 아이콘 만들어줘",
+    "mode": "icon",
+    "size": 64,
+    "palette_requested": 24,
+    "job_id": "3b6dc9596e3f",
+    "status": "completed",
+    "seed": 1234570,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 3,
+    "candidate_score": 98.49,
+    "panel_suspected": false,
+    "subject": "library building with large windows and columns",
+    "source": "template",
+    "prompt_used": "pixel art of one single library building with large windows and columns, one complete object visible, centered composition, front view, entire object in frame, game asset icon, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/3b6dc9596e3f_pixel_64.png",
+      "cutout_url": "/files/cutouts/3b6dc9596e3f_cutout.png",
+      "crop_url": "/files/crops/3b6dc9596e3f_crop.png",
+      "preview_url": "/files/previews/3b6dc9596e3f_preview_64.png",
+      "original_url": "/files/originals/3b6dc9596e3f_original.png",
+      "subject_fill": 0.78125,
+      "palette_colors": 24,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#4)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "78%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 1.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 47%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "64×64",
+          "message": "64×64 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×8 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "24색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        64,
+        64
+      ],
+      "bbox": [
+        9,
+        6,
+        55,
+        56
+      ],
+      "fill": 0.78125,
+      "opaque_ratio": 0.47412109375,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 24
+    }
+  },
+  {
+    "case": "library",
+    "prompt": "도서관 아이콘 만들어줘",
+    "mode": "icon",
+    "size": 128,
+    "palette_requested": 32,
+    "job_id": "215bb2801fbf",
+    "status": "completed",
+    "seed": 1234570,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 3,
+    "candidate_score": 99.32,
+    "panel_suspected": false,
+    "subject": "library building with large windows and columns",
+    "source": "template",
+    "prompt_used": "pixel art of one single library building with large windows and columns, one complete object visible, centered composition, front view, entire object in frame, game asset icon, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/215bb2801fbf_pixel_128.png",
+      "cutout_url": "/files/cutouts/215bb2801fbf_cutout.png",
+      "crop_url": "/files/crops/215bb2801fbf_crop.png",
+      "preview_url": "/files/previews/215bb2801fbf_preview_128.png",
+      "original_url": "/files/originals/215bb2801fbf_original.png",
+      "subject_fill": 0.7890625,
+      "palette_colors": 32,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#4)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "79%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.7px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 47%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "128×128",
+          "message": "128×128 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×4 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "32색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        128,
+        128
+      ],
+      "bbox": [
+        17,
+        13,
+        110,
+        114
+      ],
+      "fill": 0.7890625,
+      "opaque_ratio": 0.47332763671875,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 32
+    }
+  },
+  {
+    "case": "cat",
+    "prompt": "귀여운 고양이 캐릭터 한 명 만들어줘",
+    "mode": "character",
+    "size": 32,
+    "palette_requested": 16,
+    "job_id": "e10738d343c3",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 95.1,
+    "panel_suspected": false,
+    "subject": "cute cat character with pointed ears and a tail",
+    "source": "template",
+    "prompt_used": "pixel art of one single cute cat character with pointed ears and a tail, full body from head to toe, standing, centered composition, entire character in frame, game sprite, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other characters or objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/e10738d343c3_pixel_32.png",
+      "cutout_url": "/files/cutouts/e10738d343c3_cutout.png",
+      "crop_url": "/files/crops/e10738d343c3_crop.png",
+      "preview_url": "/files/previews/e10738d343c3_preview_32.png",
+      "original_url": "/files/originals/e10738d343c3_original.png",
+      "subject_fill": 0.8125,
+      "palette_colors": 16,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다.",
+        "여러 오브젝트/파편 2개가 감지되어 가장 큰 피사체 하나만 사용했습니다. 원본 이미지는 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "81%",
+          "message": "피사체가 캔버스의 75~98%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 34%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "32×32",
+          "message": "32×32 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×16 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "16색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        32,
+        32
+      ],
+      "bbox": [
+        5,
+        3,
+        27,
+        29
+      ],
+      "fill": 0.8125,
+      "opaque_ratio": 0.33984375,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 16
+    }
+  },
+  {
+    "case": "cat",
+    "prompt": "귀여운 고양이 캐릭터 한 명 만들어줘",
+    "mode": "character",
+    "size": 64,
+    "palette_requested": 24,
+    "job_id": "3833c4a9b264",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 94.26,
+    "panel_suspected": false,
+    "subject": "cute cat character with pointed ears and a tail",
+    "source": "template",
+    "prompt_used": "pixel art of one single cute cat character with pointed ears and a tail, full body from head to toe, standing, centered composition, entire character in frame, game sprite, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other characters or objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/3833c4a9b264_pixel_64.png",
+      "cutout_url": "/files/cutouts/3833c4a9b264_cutout.png",
+      "crop_url": "/files/crops/3833c4a9b264_crop.png",
+      "preview_url": "/files/previews/3833c4a9b264_preview_64.png",
+      "original_url": "/files/originals/3833c4a9b264_original.png",
+      "subject_fill": 0.796875,
+      "palette_colors": 24,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다.",
+        "여러 오브젝트/파편 2개가 감지되어 가장 큰 피사체 하나만 사용했습니다. 원본 이미지는 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "80%",
+          "message": "피사체가 캔버스의 75~98%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.5px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 33%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "64×64",
+          "message": "64×64 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×8 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "24색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        64,
+        64
+      ],
+      "bbox": [
+        10,
+        6,
+        54,
+        57
+      ],
+      "fill": 0.796875,
+      "opaque_ratio": 0.331787109375,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 24
+    }
+  },
+  {
+    "case": "cat",
+    "prompt": "귀여운 고양이 캐릭터 한 명 만들어줘",
+    "mode": "character",
+    "size": 128,
+    "palette_requested": 32,
+    "job_id": "286a3dde348b",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 94.84,
+    "panel_suspected": false,
+    "subject": "cute cat character with pointed ears and a tail",
+    "source": "template",
+    "prompt_used": "pixel art of one single cute cat character with pointed ears and a tail, full body from head to toe, standing, centered composition, entire character in frame, game sprite, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other characters or objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/286a3dde348b_pixel_128.png",
+      "cutout_url": "/files/cutouts/286a3dde348b_cutout.png",
+      "crop_url": "/files/crops/286a3dde348b_crop.png",
+      "preview_url": "/files/previews/286a3dde348b_preview_128.png",
+      "original_url": "/files/originals/286a3dde348b_original.png",
+      "subject_fill": 0.8125,
+      "palette_colors": 32,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다.",
+        "여러 오브젝트/파편 2개가 감지되어 가장 큰 피사체 하나만 사용했습니다. 원본 이미지는 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "81%",
+          "message": "피사체가 캔버스의 75~98%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.5px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 34%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "128×128",
+          "message": "128×128 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×4 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "32색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        128,
+        128
+      ],
+      "bbox": [
+        20,
+        12,
+        109,
+        116
+      ],
+      "fill": 0.8125,
+      "opaque_ratio": 0.33758544921875,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 32
+    }
+  },
+  {
+    "case": "tree",
+    "prompt": "나무 한 그루 만들어줘",
+    "mode": "object",
+    "size": 32,
+    "palette_requested": 16,
+    "job_id": "96e8d6c41aa8",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 99.85,
+    "panel_suspected": false,
+    "subject": "tree with a trunk and green canopy",
+    "source": "template",
+    "prompt_used": "pixel art of one single tree with a trunk and green canopy, one complete object visible, centered composition, three-quarter view, entire object in frame, game asset, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/96e8d6c41aa8_pixel_32.png",
+      "cutout_url": "/files/cutouts/96e8d6c41aa8_cutout.png",
+      "crop_url": "/files/crops/96e8d6c41aa8_crop.png",
+      "preview_url": "/files/previews/96e8d6c41aa8_preview_32.png",
+      "original_url": "/files/originals/96e8d6c41aa8_original.png",
+      "subject_fill": 0.8125,
+      "palette_colors": 16,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "81%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 35%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "32×32",
+          "message": "32×32 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×16 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "16색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        32,
+        32
+      ],
+      "bbox": [
+        4,
+        3,
+        28,
+        29
+      ],
+      "fill": 0.8125,
+      "opaque_ratio": 0.3486328125,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 16
+    }
+  },
+  {
+    "case": "tree",
+    "prompt": "나무 한 그루 만들어줘",
+    "mode": "object",
+    "size": 64,
+    "palette_requested": 24,
+    "job_id": "15439bd65fc0",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 99.22,
+    "panel_suspected": false,
+    "subject": "tree with a trunk and green canopy",
+    "source": "template",
+    "prompt_used": "pixel art of one single tree with a trunk and green canopy, one complete object visible, centered composition, three-quarter view, entire object in frame, game asset, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/15439bd65fc0_pixel_64.png",
+      "cutout_url": "/files/cutouts/15439bd65fc0_cutout.png",
+      "crop_url": "/files/crops/15439bd65fc0_crop.png",
+      "preview_url": "/files/previews/15439bd65fc0_preview_64.png",
+      "original_url": "/files/originals/15439bd65fc0_original.png",
+      "subject_fill": 0.78125,
+      "palette_colors": 24,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "78%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 35%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "64×64",
+          "message": "64×64 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×8 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "24색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        64,
+        64
+      ],
+      "bbox": [
+        8,
+        7,
+        56,
+        57
+      ],
+      "fill": 0.78125,
+      "opaque_ratio": 0.345947265625,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 24
+    }
+  },
+  {
+    "case": "tree",
+    "prompt": "나무 한 그루 만들어줘",
+    "mode": "object",
+    "size": 128,
+    "palette_requested": 32,
+    "job_id": "97a00b4f46d4",
+    "status": "completed",
+    "seed": 1234569,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 2,
+    "candidate_score": 99.01,
+    "panel_suspected": false,
+    "subject": "tree with a trunk and green canopy",
+    "source": "template",
+    "prompt_used": "pixel art of one single tree with a trunk and green canopy, one complete object visible, centered composition, three-quarter view, entire object in frame, game asset, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/97a00b4f46d4_pixel_128.png",
+      "cutout_url": "/files/cutouts/97a00b4f46d4_cutout.png",
+      "crop_url": "/files/crops/97a00b4f46d4_crop.png",
+      "preview_url": "/files/previews/97a00b4f46d4_preview_128.png",
+      "original_url": "/files/originals/97a00b4f46d4_original.png",
+      "subject_fill": 0.7890625,
+      "palette_colors": 32,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#3)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다.",
+        "여러 오브젝트/파편 4개가 감지되어 가장 큰 피사체 하나만 사용했습니다. 원본 이미지는 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "79%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.7px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 38%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "128×128",
+          "message": "128×128 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×4 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "32색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        128,
+        128
+      ],
+      "bbox": [
+        16,
+        13,
+        111,
+        114
+      ],
+      "fill": 0.7890625,
+      "opaque_ratio": 0.384765625,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 32
+    }
+  },
+  {
+    "case": "apple",
+    "prompt": "빨간색 사과 하나 만들어줘",
+    "mode": "object",
+    "size": 32,
+    "palette_requested": 16,
+    "job_id": "516293ed8151",
+    "status": "completed",
+    "seed": 1234567,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 0,
+    "candidate_score": 98.6,
+    "panel_suspected": false,
+    "subject": "red apple with a stem and leaf",
+    "source": "template",
+    "prompt_used": "pixel art of one single red apple with a stem and leaf, one complete object visible, centered composition, three-quarter view, entire object in frame, game asset, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/516293ed8151_pixel_32.png",
+      "cutout_url": "/files/cutouts/516293ed8151_cutout.png",
+      "crop_url": "/files/crops/516293ed8151_crop.png",
+      "preview_url": "/files/previews/516293ed8151_preview_32.png",
+      "original_url": "/files/originals/516293ed8151_original.png",
+      "subject_fill": 0.75,
+      "palette_colors": 16,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#1)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "75%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 42%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "32×32",
+          "message": "32×32 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×16 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "16색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        32,
+        32
+      ],
+      "bbox": [
+        4,
+        4,
+        28,
+        28
+      ],
+      "fill": 0.75,
+      "opaque_ratio": 0.4189453125,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 16
+    }
+  },
+  {
+    "case": "apple",
+    "prompt": "빨간색 사과 하나 만들어줘",
+    "mode": "object",
+    "size": 64,
+    "palette_requested": 24,
+    "job_id": "dc92db0999e5",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 98.7,
+    "panel_suspected": false,
+    "subject": "red apple with a stem and leaf",
+    "source": "template",
+    "prompt_used": "pixel art of one single red apple with a stem and leaf, one complete object visible, centered composition, three-quarter view, entire object in frame, game asset, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/dc92db0999e5_pixel_64.png",
+      "cutout_url": "/files/cutouts/dc92db0999e5_cutout.png",
+      "crop_url": "/files/crops/dc92db0999e5_crop.png",
+      "preview_url": "/files/previews/dc92db0999e5_preview_64.png",
+      "original_url": "/files/originals/dc92db0999e5_original.png",
+      "subject_fill": 0.78125,
+      "palette_colors": 24,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다.",
+        "여러 오브젝트/파편 2개가 감지되어 가장 큰 피사체 하나만 사용했습니다. 원본 이미지는 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "78%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.5px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 32%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "64×64",
+          "message": "64×64 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×8 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "24색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        64,
+        64
+      ],
+      "bbox": [
+        12,
+        7,
+        51,
+        57
+      ],
+      "fill": 0.78125,
+      "opaque_ratio": 0.32421875,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 24
+    }
+  },
+  {
+    "case": "apple",
+    "prompt": "빨간색 사과 하나 만들어줘",
+    "mode": "object",
+    "size": 128,
+    "palette_requested": 32,
+    "job_id": "50e31e5d8a55",
+    "status": "completed",
+    "seed": 1234568,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 1,
+    "candidate_score": 98.81,
+    "panel_suspected": false,
+    "subject": "red apple with a stem and leaf",
+    "source": "template",
+    "prompt_used": "pixel art of one single red apple with a stem and leaf, one complete object visible, centered composition, three-quarter view, entire object in frame, game asset, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/50e31e5d8a55_pixel_128.png",
+      "cutout_url": "/files/cutouts/50e31e5d8a55_cutout.png",
+      "crop_url": "/files/crops/50e31e5d8a55_crop.png",
+      "preview_url": "/files/previews/50e31e5d8a55_preview_128.png",
+      "original_url": "/files/originals/50e31e5d8a55_original.png",
+      "subject_fill": 0.7734375,
+      "palette_colors": 32,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#2)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다.",
+        "여러 오브젝트/파편 2개가 감지되어 가장 큰 피사체 하나만 사용했습니다. 원본 이미지는 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "77%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.5px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 33%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "128×128",
+          "message": "128×128 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×4 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "32색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        128,
+        128
+      ],
+      "bbox": [
+        26,
+        14,
+        102,
+        113
+      ],
+      "fill": 0.7734375,
+      "opaque_ratio": 0.32586669921875,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 32
+    }
+  },
+  {
+    "case": "school",
+    "prompt": "작은 픽셀아트 학교 건물 만들어줘",
+    "mode": "icon",
+    "size": 32,
+    "palette_requested": 16,
+    "job_id": "812fbfaf9226",
+    "status": "completed",
+    "seed": 1234567,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 0,
+    "candidate_score": 99.75,
+    "panel_suspected": false,
+    "subject": "small school building with a school entrance and bell tower",
+    "source": "template",
+    "prompt_used": "pixel art of one single small school building with a school entrance and bell tower, one complete object visible, centered composition, front view, entire object in frame, game asset icon, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/812fbfaf9226_pixel_32.png",
+      "cutout_url": "/files/cutouts/812fbfaf9226_cutout.png",
+      "crop_url": "/files/crops/812fbfaf9226_crop.png",
+      "preview_url": "/files/previews/812fbfaf9226_preview_32.png",
+      "original_url": "/files/originals/812fbfaf9226_original.png",
+      "subject_fill": 0.8125,
+      "palette_colors": 16,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#1)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "81%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 53%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "32×32",
+          "message": "32×32 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×16 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "16색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        32,
+        32
+      ],
+      "bbox": [
+        4,
+        3,
+        28,
+        29
+      ],
+      "fill": 0.8125,
+      "opaque_ratio": 0.525390625,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 16
+    }
+  },
+  {
+    "case": "school",
+    "prompt": "작은 픽셀아트 학교 건물 만들어줘",
+    "mode": "icon",
+    "size": 64,
+    "palette_requested": 24,
+    "job_id": "9ec7c641380b",
+    "status": "completed",
+    "seed": 1234567,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 0,
+    "candidate_score": 99.2,
+    "panel_suspected": false,
+    "subject": "small school building with a school entrance and bell tower",
+    "source": "template",
+    "prompt_used": "pixel art of one single small school building with a school entrance and bell tower, one complete object visible, centered composition, front view, entire object in frame, game asset icon, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/9ec7c641380b_pixel_64.png",
+      "cutout_url": "/files/cutouts/9ec7c641380b_cutout.png",
+      "crop_url": "/files/crops/9ec7c641380b_crop.png",
+      "preview_url": "/files/previews/9ec7c641380b_preview_64.png",
+      "original_url": "/files/originals/9ec7c641380b_original.png",
+      "subject_fill": 0.796875,
+      "palette_colors": 24,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#1)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "80%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.7px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 51%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "64×64",
+          "message": "64×64 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×8 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "24색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        64,
+        64
+      ],
+      "bbox": [
+        7,
+        6,
+        56,
+        57
+      ],
+      "fill": 0.796875,
+      "opaque_ratio": 0.510009765625,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 24
+    }
+  },
+  {
+    "case": "school",
+    "prompt": "작은 픽셀아트 학교 건물 만들어줘",
+    "mode": "icon",
+    "size": 128,
+    "palette_requested": 32,
+    "job_id": "5dc7d4fdfbf6",
+    "status": "completed",
+    "seed": 1234567,
+    "base_seed": 1234567,
+    "candidates_generated": 4,
+    "selected_candidate": 0,
+    "candidate_score": 99.94,
+    "panel_suspected": false,
+    "subject": "small school building with a school entrance and bell tower",
+    "source": "template",
+    "prompt_used": "pixel art of one single small school building with a school entrance and bell tower, one complete object visible, centered composition, front view, entire object in frame, game asset icon, clear bold silhouette, simple readable shape, clean edges, limited color palette, plain pure white background, no scenery, no ground, no shadow, no other objects",
+    "result": {
+      "pixel_url": "/files/pixel_art/5dc7d4fdfbf6_pixel_128.png",
+      "cutout_url": "/files/cutouts/5dc7d4fdfbf6_cutout.png",
+      "crop_url": "/files/crops/5dc7d4fdfbf6_crop.png",
+      "preview_url": "/files/previews/5dc7d4fdfbf6_preview_128.png",
+      "original_url": "/files/originals/5dc7d4fdfbf6_original.png",
+      "subject_fill": 0.796875,
+      "palette_colors": 32,
+      "resize_filter": "nearest",
+      "warnings": [
+        "4개 후보 중 최선(#1)을 선택했습니다. 모든 후보 원본은 outputs/candidates에 보존되어 있습니다."
+      ],
+      "quality": [
+        {
+          "key": "subject_size",
+          "label": "피사체 크기",
+          "passed": true,
+          "value": "80%",
+          "message": "피사체가 캔버스의 72~90%를 차지해야 합니다."
+        },
+        {
+          "key": "centered",
+          "label": "중앙 배치",
+          "passed": true,
+          "value": "오프셋 0.0px",
+          "message": "피사체 중심이 캔버스 중앙에서 6% 이내여야 합니다."
+        },
+        {
+          "key": "single_subject",
+          "label": "단일 오브젝트",
+          "passed": true,
+          "value": "1개 / 최대 100%",
+          "message": "하나의 오브젝트만 남아야 합니다."
+        },
+        {
+          "key": "no_card_panel",
+          "label": "카드/패널 없음",
+          "passed": true,
+          "value": "없음",
+          "message": "피사체 뒤에 카드/패널/사각 배경이 남지 않아야 합니다."
+        },
+        {
+          "key": "not_clipped",
+          "label": "잘림 없음",
+          "passed": true,
+          "value": "여백 확보",
+          "message": "피사체가 출력 캔버스 가장자리에서 잘리지 않아야 합니다."
+        },
+        {
+          "key": "source_not_clipped",
+          "label": "원본 잘림 확인",
+          "passed": true,
+          "value": "원본 내부",
+          "message": "원본 생성 이미지에서 피사체가 잘렸는지 확인하세요."
+        },
+        {
+          "key": "transparent_alpha",
+          "label": "투명 배경",
+          "passed": true,
+          "value": "불투명 51%",
+          "message": "투명 PNG의 알파 채널이 정상이어야 합니다."
+        },
+        {
+          "key": "output_size",
+          "label": "출력 해상도",
+          "passed": true,
+          "value": "128×128",
+          "message": "128×128 PNG여야 합니다."
+        },
+        {
+          "key": "nearest_preview",
+          "label": "픽셀 경계 유지",
+          "passed": true,
+          "value": "×4 NN",
+          "message": "미리보기는 nearest-neighbor로 확대되어야 합니다."
+        },
+        {
+          "key": "palette",
+          "label": "팔레트",
+          "passed": true,
+          "value": "32색",
+          "message": "색상 팔레트를 계산할 수 있어야 합니다."
+        }
+      ]
+    },
+    "metrics": {
+      "mode": "RGBA",
+      "size": [
+        128,
+        128
+      ],
+      "bbox": [
+        16,
+        13,
+        112,
+        115
+      ],
+      "fill": 0.796875,
+      "opaque_ratio": 0.5126953125,
+      "components": 1,
+      "largest_share": 1.0,
+      "colours": 32
+    }
+  }
+]

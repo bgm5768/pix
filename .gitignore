@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+backend/.venv/
+.venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Runtime data
+outputs/originals/*
+outputs/pixel_art/*
+outputs/previews/*
+outputs/metadata/*
+outputs/images/*
+outputs/image_previews/*
+outputs/cutouts/*
+outputs/crops/*
+outputs/candidates/*
+!outputs/**/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Generated config
+config/comfyui_model_paths.generated.yaml
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

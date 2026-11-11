@@ -1,0 +1,124 @@
+# PixelForge Local 설정
+# 이 파일의 값만 수정하면 ComfyUI 주소/모델/저장 경로를 바꿀 수 있습니다.
+# 모든 상대 경로는 프로젝트 루트(C:\workspace\pix) 기준입니다.
+
+app:
+  name: PixelForge Local
+  version: 1.0.0
+  host: 127.0.0.1
+  port: 8765
+  open_browser: true
+  # GitHub Pages(HTTPS)에서 이 PC의 로컬 백엔드로 접속할 수 있게 허용합니다.
+  cors_origins:
+    - 'http://127.0.0.1:5173'
+    - 'http://localhost:5173'
+    - 'http://127.0.0.1:8765'
+    - 'http://localhost:8765'
+    - 'https://bgm5768.github.io'
+
+comfyui:
+  base_url: http://127.0.0.1:8188
+  # ComfyUI가 꺼져 있으면 start.bat/백엔드가 기존 설치를 자동으로 기동합니다.
+  auto_start: true
+  stop_on_exit: false
+  # 현재 PC에 설치된 ComfyUI Desktop(standalone) 경로
+  install_dir: 'C:\Users\bgm2\AppData\Local\Comfy-Desktop\ComfyUI-Installs\ComfyUI'
+  python_path: 'C:\Users\bgm2\AppData\Local\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI\.venv\Scripts\python.exe'
+  main_path: 'C:\Users\bgm2\AppData\Local\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI\main.py'
+  models_dir: 'C:\Users\bgm2\AppData\Local\Comfy-Desktop\ComfyUI-Shared\models'
+  input_dir: 'C:\Users\bgm2\AppData\Local\Comfy-Desktop\ComfyUI-Shared\input'
+  output_dir: 'C:\Users\bgm2\AppData\Local\Comfy-Desktop\ComfyUI-Shared\output'
+  launch_timeout_seconds: 120
+  request_timeout_seconds: 20
+  job_timeout_seconds: 300
+  # 기동 시 자동 생성되는 ComfyUI 추가 모델 경로 설정
+  extra_model_paths_file: 'config/comfyui_model_paths.generated.yaml'
+
+generation:
+  workflow_file: 'workflows/text_to_pixel.json'
+  checkpoint: 'sd_xl_base_1.0.safetensors'
+  lora: 'pixel-art-xl.safetensors'
+  base_width: 512
+  base_height: 512
+  steps: 28
+  cfg: 6.0
+  sampler: 'dpmpp_2m'
+  scheduler: 'karras'
+  lora_strength: 0.8
+  output_sizes: [16, 32, 64, 96, 128]
+  default_output_size: 64
+  default_postprocess: 'quantize'
+  palette_colors: 16
+  default_palette_colors: 16
+  # 픽셀 축소 필터: nearest(선명) / box(깔끔) / lanczos(부드러움)
+  default_resize_filter: 'nearest'
+  # 품질 우선: 아이콘/캐릭터/오브젝트는 여러 seed를 생성한 뒤
+  # 카드/패널/중복/구도 점수가 가장 높은 후보를 선택합니다.
+  # 타일 모드는 단일 피사체가 아니므로 1장만 생성합니다.
+  default_candidates: 4
+  max_candidates: 8
+  # 이미지 생성기 페이지: 픽셀 후처리 없이 SDXL 원본을 저장합니다.
+  default_image_size: 1024
+  image_sizes: [512, 768, 1024]
+  image_checkpoint: 'lustifySDXLNSFWSFW_v20.safetensors'
+  image_lora: ''
+  image_default_candidates: 1
+  image_negative_prompt: >-
+    blurry, low quality, jpeg artifacts, watermark, text, signature,
+    deformed, bad anatomy, extra limbs, cropped, out of frame
+  transparent_default: true
+  # 로컬 배경 분리(rembg u2net, CPU). 프레임을 채운 픽셀아트도 인식하도록
+  # 가장자리 색으로 패딩한 뒤 분리합니다. 실패하면 내장 색상 키로 대체됩니다.
+  rembg_enabled: true
+  rembg_model: 'u2net'
+  rembg_pad_ratio: 0.25
+  rembg_min_ratio: 0.02
+  rembg_max_ratio: 0.985
+  # 스프라이트 시트 이음선/단색 배경 제거용 색상 키
+  background_key_tolerance: 28
+  background_key_min_dominance: 0.50
+  # 피사체가 캔버스에서 차지할 목표 비율(가장 긴 변 기준)
+  subject_fill_icon: 0.80
+  subject_fill_character: 0.86
+  subject_fill_object: 0.82
+  # 로컬 LLM(Ollama)이 실행 중이면 짧은 프롬프트를 구조화합니다.
+  # 없으면 지연 없이 템플릿 엔진으로 자동 대체됩니다.
+  prompt_llm_enabled: true
+  prompt_llm_url: 'http://127.0.0.1:11434'
+  prompt_llm_model: ''
+  prompt_llm_timeout_seconds: 2.0
+  alpha_threshold: 128
+  min_opaque_ratio: 0.03
+  style_prompt: >-
+    pixel art, single character sprite, full body visible from head to toe,
+    standing pose, 16-bit game sprite, crisp hard pixel edges, no anti-aliasing,
+    limited color palette, clean readable silhouette, centered composition,
+    game asset, sharp focus, high contrast, consistent lighting
+  transparent_prompt: >-
+    full body, centered, isolated on a plain solid white background,
+    no shadow, no ground plane, no border, no frame, no background scenery,
+    no other objects
+  negative_prompt: >-
+    blurry, anti-aliased, smooth gradients, photorealistic, realistic texture,
+    excessive details, noise, jpeg artifacts, soft edges, 3d render, text,
+    watermark, signature, frame, border, background scenery, ground shadow,
+    gradient background, textured background, sprite sheet, multiple views,
+    card, panel, vignette, UI, mockup, close-up, portrait, bust, cropped,
+    out of frame, multiple characters, duplicate, extra limbs, floating objects,
+    tree, scenery
+
+storage:
+  originals_dir: 'outputs/originals'
+  pixel_dir: 'outputs/pixel_art'
+  previews_dir: 'outputs/previews'
+  images_dir: 'outputs/images'
+  image_previews_dir: 'outputs/image_previews'
+  metadata_dir: 'outputs/metadata'
+  cutouts_dir: 'outputs/cutouts'
+  crops_dir: 'outputs/crops'
+  candidates_dir: 'outputs/candidates'
+  logs_dir: 'logs'
+
+jobs:
+  max_pending: 2
+  poll_interval_seconds: 0.7
