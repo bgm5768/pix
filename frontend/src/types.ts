@@ -155,6 +155,8 @@ export interface GenerateRequest {
   lora?: string | null;
   kind: PageKind;
   image_size: ImageSize;
+  image_width?: number | null;
+  image_height?: number | null;
   translate_prompt?: boolean;
   reference_images?: ReferenceInput[];
   identity_engine?: IdentityEngine;
@@ -480,6 +482,9 @@ export interface AppSettings {
   imageSize: ImageSize;
   imageCheckpoint: string | null;
   imageLora: string | null;
+  // Explicit output size for comic panels (null = square, imageSize x imageSize).
+  imageWidth: number | null;
+  imageHeight: number | null;
   referenceSize: ImageSize;
   referenceCheckpoint: string | null;
   referenceLora: string | null;

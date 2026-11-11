@@ -85,11 +85,20 @@ export function Gallery({
                   </div>
                   <div className="gallery-meta">
                     <span className="gallery-size">
-                      {isReference
-                        ? `${item.output_size}px REF`
-                        : isImage
-                          ? `${item.output_size}px IMAGE`
-                          : `${item.output_size}px`}
+                      {(() => {
+                        const panel =
+                          item.width && item.height &&
+                          (item.width !== item.output_size ||
+                            item.height !== item.output_size);
+                        const size = panel
+                          ? `${item.width}×${item.height}`
+                          : `${item.output_size}px`;
+                        return isReference
+                          ? `${size} REF`
+                          : isImage
+                            ? `${size} IMAGE`
+                            : `${item.output_size}px`;
+                      })()}
                     </span>
                     <span>{formatRelative(item.created_at)}</span>
                   </div>

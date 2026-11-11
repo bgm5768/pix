@@ -67,6 +67,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   imageSize: 1024,
   imageCheckpoint: null,
   imageLora: null,
+  imageWidth: null,
+  imageHeight: null,
   referenceSize: 1024,
   referenceCheckpoint: null,
   referenceLora: null,
@@ -169,6 +171,14 @@ function readStoredSettings(): AppSettings | null {
       imageCheckpoint:
         typeof parsed.imageCheckpoint === "string" ? parsed.imageCheckpoint : null,
       imageLora: typeof parsed.imageLora === "string" ? parsed.imageLora : null,
+      imageWidth:
+        typeof parsed.imageWidth === "number" && parsed.imageWidth > 0
+          ? parsed.imageWidth
+          : null,
+      imageHeight:
+        typeof parsed.imageHeight === "number" && parsed.imageHeight > 0
+          ? parsed.imageHeight
+          : null,
       referenceSize,
       referenceCheckpoint:
         typeof parsed.referenceCheckpoint === "string" ? parsed.referenceCheckpoint : null,
@@ -587,6 +597,8 @@ export default function App() {
             imageSize: loaded.default_image_size,
             imageCheckpoint: loaded.image_checkpoint || null,
             imageLora: loaded.image_lora || "",
+            imageWidth: null,
+            imageHeight: null,
             referenceSize: loaded.reference_default_size ?? loaded.default_image_size,
             referenceCheckpoint: loaded.reference_checkpoint || loaded.image_checkpoint || null,
             referenceLora: loaded.reference_lora || "",
@@ -952,6 +964,8 @@ export default function App() {
             : settings.lora,
         kind: targetPage,
         image_size: isReference ? settings.referenceSize : settings.imageSize,
+        image_width: isNative ? settings.imageWidth : null,
+        image_height: isNative ? settings.imageHeight : null,
         translate_prompt: translatePrompt,
         reference_images: isReference
           ? referenceItems.map((item) => ({

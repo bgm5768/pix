@@ -1478,6 +1478,58 @@ select:focus-visible {
   gap: 6px;
 }
 
+.cut-shape-label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  color: var(--muted-deep);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+}
+
+.cut-shape-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 7px;
+}
+
+.cut-shape {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  color: var(--text-soft);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.cut-shape:hover {
+  border-color: rgba(255, 106, 213, 0.45);
+}
+
+.cut-shape.active {
+  color: var(--text);
+  border-color: rgba(255, 106, 213, 0.6);
+  background: rgba(255, 106, 213, 0.1);
+}
+
+.cut-shape strong {
+  font-size: 11px;
+}
+
+.cut-shape small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
 .size-button {
   display: flex;
   align-items: baseline;

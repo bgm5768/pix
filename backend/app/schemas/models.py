@@ -160,6 +160,10 @@ class GenerateRequest(BaseModel):
     # keeps the native SDXL output and skips pixel postprocessing.
     kind: GenerateKind = "pixel"
     image_size: ImageSize = 1024
+    # Optional explicit output size. Used for comic panels (e.g. 832x1216)
+    # where a square canvas does not fit the layout.
+    image_width: int | None = Field(default=None, ge=256, le=2048)
+    image_height: int | None = Field(default=None, ge=256, le=2048)
     # Optional per-request model override.  None (or an empty checkpoint)
     # keeps the server default from config/settings.yaml.  An empty LoRA
     # string explicitly disables the LoRA for this request.
@@ -204,6 +208,14 @@ class GenerateRequest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_references(self) -> "GenerateRequest":
+        if self.image_width is not None and self.image_height is None:
+            raise ValueError("가로 크기만으로는 사용할 수 없습니다. 세로 크기도 지정해 주세요.")
+        if self.image_height is not None and self.image_width is None:
+            raise ValueError("세로 크기만으로는 사용할 수 없습니다. 가로 크기도 지정해 주세요.")
+        if self.image_width is not None and self.image_width % 8:
+            raise ValueError("가로 크기는 8의 배수로 지정해 주세요.")
+        if self.image_height is not None and self.image_height % 8:
+            raise ValueError("세로 크기는 8의 배수로 지정해 주세요.")
         if self.kind != "reference":
             if self.identity_engine != "none":
                 raise ValueError("얼굴 고정은 레퍼런스 페이지에서만 사용할 수 있습니다.")

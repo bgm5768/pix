@@ -101,6 +101,19 @@ const RESIZE_LABELS: Record<ResizeFilter, string> = {
 
 const PALETTE_OPTIONS = [0, 8, 16, 24, 32];
 
+const CUT_SHAPES: Array<{
+  id: string;
+  label: string;
+  hint: string;
+  width: number | null;
+  height: number | null;
+}> = [
+  { id: "square", label: "정사각형", hint: "기본 비율", width: null, height: null },
+  { id: "portrait", label: "세로 컷", hint: "832×1216", width: 832, height: 1216 },
+  { id: "portrait-light", label: "세로 라이트", hint: "704×1152", width: 704, height: 1152 },
+  { id: "landscape", label: "가로 컷", hint: "1216×832", width: 1216, height: 832 },
+];
+
 function ModelInfo({ role, model }: { role: string; model?: ModelFile }) {
   if (!model) return null;
   return (
@@ -636,6 +649,40 @@ export function SettingsPanel({
               ? "SDXL 원본 이미지를 선택한 해상도로 저장합니다. 1024px가 가장 선명합니다."
               : "작을수록 실루엣이 선명하고, 96~128px은 디테일과 팔레트를 더 살립니다."}
         </p>
+        {isNative && (
+          <>
+            <span className="field-label cut-shape-label">컷 모양</span>
+            <div className="cut-shape-grid">
+              {CUT_SHAPES.map((shape) => {
+                const active =
+                  (shape.width === null && settings.imageWidth === null) ||
+                  (shape.width === settings.imageWidth &&
+                    shape.height === settings.imageHeight);
+                return (
+                  <button
+                    key={shape.id}
+                    type="button"
+                    className={`cut-shape ${active ? "active" : ""}`}
+                    onClick={() =>
+                      onChange({ imageWidth: shape.width, imageHeight: shape.height })
+                    }
+                  >
+                    <strong>{shape.label}</strong>
+                    <small>
+                      {shape.width === null
+                        ? `${selectedSize}×${selectedSize}`
+                        : shape.hint}
+                    </small>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="setting-note">
+              세로·가로 컷은 만화 판(연재 컷) 비율입니다. 정사각형을 고르면 선택한 해상도가 그대로
+              적용됩니다.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="setting-block">

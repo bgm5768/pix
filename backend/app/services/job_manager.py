@@ -615,10 +615,11 @@ class JobManager:
                 image_path, preview_path = save_image_result(
                     self.settings, job.id, image_result, job.request.image_size
                 )
+                out_width, out_height = self._image_dims(job)
                 details = self._generation_details(
                     job,
-                    width=job.request.image_size,
-                    height=job.request.image_size,
+                    width=out_width,
+                    height=out_height,
                     transparent=False,
                     postprocess=None,
                     elapsed_seconds=round(time.monotonic() - started, 2),
@@ -635,6 +636,8 @@ class JobManager:
                         candidates_generated=len(candidates),
                         candidate_index=0,
                         warnings=job.warnings,
+                        width=out_width,
+                        height=out_height,
                     )
                 else:
                     job.result = image_result_info(
@@ -646,6 +649,8 @@ class JobManager:
                         candidate_index=0,
                         warnings=job.warnings,
                         details=details,
+                        width=out_width,
+                        height=out_height,
                     )
                 job.completed_at = datetime.now(timezone.utc)
                 self._save_native_metadata(
@@ -939,6 +944,12 @@ class JobManager:
             else:
                 job.lora = job.request.lora.strip()
 
+    def _image_dims(self, job: Job) -> tuple[int, int]:
+        """Actual output width/height (comic panels may not be square)."""
+        width = job.request.image_width or job.request.image_size
+        height = job.request.image_height or job.request.image_size
+        return int(width), int(height)
+
     def _build_workflow(
         self, job: Job, seed: int | None = None, candidate_index: int = 0
     ) -> dict[str, Any]:
@@ -956,8 +967,10 @@ class JobManager:
 
         generation = self.settings.generation
         is_native = job.request.kind in {"image", "reference"}
-        width = job.request.image_size if is_native else generation.base_width
-        height = job.request.image_size if is_native else generation.base_height
+        if is_native:
+            width, height = self._image_dims(job)
+        else:
+            width, height = generation.base_width, generation.base_height
         try:
             workflow["1"]["inputs"]["ckpt_name"] = job.checkpoint
             workflow["3"]["inputs"]["text"] = job.prompt_used or job.request.prompt
@@ -1572,8 +1585,8 @@ class JobManager:
             "prompt_translated": job.prompt_translated,
             "negative_used": job.negative_used,
             "image_size": job.request.image_size,
-            "width": job.request.image_size,
-            "height": job.request.image_size,
+            "width": self._image_dims(job)[0],
+            "height": self._image_dims(job)[1],
             "mode": job.request.mode,
             "original_file": original_path.name,
             "image_file": image_path.name,
@@ -1620,8 +1633,8 @@ class JobManager:
                 "lora_strength": job.request.lora_strength,
                 "sampler": self.settings.generation.sampler,
                 "scheduler": self.settings.generation.scheduler,
-                "base_width": job.request.image_size,
-                "base_height": job.request.image_size,
+                "base_width": self._image_dims(job)[0],
+                "base_height": self._image_dims(job)[1],
                 "ipadapter": (
                     {
                         "preset": "PLUS (high strength)",

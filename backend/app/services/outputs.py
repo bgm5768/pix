@@ -196,6 +196,8 @@ def image_result_info(
     candidate_index: int = 0,
     warnings: list[str] | None = None,
     details: GenerationDetails | None = None,
+    width: int | None = None,
+    height: int | None = None,
 ) -> ResultInfo:
     """Result metadata for the image generator page (no pixel postprocess)."""
     return native_result_info(
@@ -208,6 +210,8 @@ def image_result_info(
         candidate_index=candidate_index,
         warnings=warnings,
         details=details,
+        width=width,
+        height=height,
     )
 
 
@@ -222,6 +226,8 @@ def reference_result_info(
     candidates_generated: int = 1,
     candidate_index: int = 0,
     warnings: list[str] | None = None,
+    width: int | None = None,
+    height: int | None = None,
 ) -> ResultInfo:
     """Result metadata for the reference-conditioned image page."""
     return native_result_info(
@@ -236,6 +242,8 @@ def reference_result_info(
         candidates_generated=candidates_generated,
         candidate_index=candidate_index,
         warnings=warnings,
+        width=width,
+        height=height,
     )
 
 
@@ -251,11 +259,15 @@ def native_result_info(
     candidates_generated: int = 1,
     candidate_index: int = 0,
     warnings: list[str] | None = None,
+    width: int | None = None,
+    height: int | None = None,
 ) -> ResultInfo:
     """Shared result metadata for native SDXL pages (image/reference)."""
     _safe_job_id(job_id)
     if kind not in {"image", "reference"}:
         kind = "image"
+    out_width = int(width or image_size)
+    out_height = int(height or image_size)
     image_url = f"/files/images/{job_id}_image_{image_size}.png"
     preview_url = f"/files/image_previews/{job_id}_image_preview_{image_size}.png"
     return ResultInfo(
@@ -264,8 +276,8 @@ def native_result_info(
         image_url=image_url,
         image_preview_url=preview_url,
         download_url=f"/api/download/{job_id}?kind={kind}",
-        width=int(image_size),
-        height=int(image_size),
+        width=out_width,
+        height=out_height,
         preview_scale=1,
         palette_colors=0,
         transparent=False,
@@ -470,8 +482,8 @@ def _list_native_outputs(settings: Settings, limit: int, kind: str) -> OutputsRe
                 preview_url=preview_url,
                 original_url=f"/files/originals/{original_path.name}",
                 download_url=f"/api/download/{job_id}?kind={kind}",
-                width=size,
-                height=size,
+                width=int(meta.get("width") or size),
+                height=int(meta.get("height") or size),
                 created_at=created_at,
                 prompt=str(request.get("prompt") or meta.get("prompt_used") or ""),
                 seed=meta.get("seed_used"),
