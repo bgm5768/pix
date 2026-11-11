@@ -10,7 +10,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [1/3] Building frontend for GitHub Pages...
+echo [1/4] Building frontend for GitHub Pages...
 pushd "%ROOT%\frontend"
 call npm run build:pages
 if errorlevel 1 (
@@ -41,7 +41,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [2/3] Preparing gh-pages content...
+echo [2/4] Preparing gh-pages content...
 xcopy "%ROOT%\frontend\dist\*" "%PAGES_DIR%\" /E /I /Y >nul
 if errorlevel 1 goto :fail
 type nul > "%PAGES_DIR%\.nojekyll"
@@ -54,7 +54,7 @@ git add -A
 git commit -m "deploy: GitHub Pages UI %DATE% %TIME%" >nul
 if errorlevel 1 goto :fail_pop
 git remote add origin "%REMOTE%"
-echo [3/3] Pushing gh-pages...
+echo [3/4] Pushing gh-pages...
 git push --force origin gh-pages
 if errorlevel 1 goto :fail_pop
 popd
@@ -62,6 +62,16 @@ rmdir /S /Q "%PAGES_DIR%"
 echo.
 echo [OK] Deployed to https://bgm5768.github.io/pix/
 echo      GitHub Pages may take a minute to update.
+
+echo [4/4] Restoring the local (root-base) frontend build...
+pushd "%ROOT%\frontend"
+call npm run build >nul 2>&1
+if errorlevel 1 (
+  echo [WARN] Local frontend rebuild failed. Run "npm run build" in frontend.
+) else (
+  echo [OK] Local build restored.
+)
+popd
 exit /b 0
 
 :fail_pop
