@@ -94,7 +94,11 @@ class StudioService:
 
     # ----------------------------------------------------------------- status
     def is_running(self) -> bool:
-        return self._process is not None and self._process.poll() is None
+        if self._process is not None and self._process.poll() is None:
+            return True
+        # A studio that was started earlier (or by hand) keeps serving even if
+        # this backend does not own the process.
+        return self._port_open(self.port)
 
     def status(self) -> dict[str, Any]:
         return {
@@ -125,8 +129,8 @@ class StudioService:
                     detail=f"kit_path={self.kit_path}",
                 )
             if self._port_open(self.port):
-                # Something else already listens on that port (maybe a studio
-                # the user started by hand) - reuse it instead of failing.
+                # Something else already listens on that port (a studio that is
+                # already running, maybe started by hand) - reuse it.
                 logger.info("Studio server already listening on port %s", self.port)
                 return True
 
