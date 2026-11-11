@@ -34,6 +34,9 @@ _WOODS_RE = re.compile(r"\b(through|in|into) the woods\b", re.IGNORECASE)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。？！;])\s+|\n+")
 # Fallback split for a single very long sentence.
 _CLAUSE_SPLIT_RE = re.compile(r"(?<=[,，、])\s*")
+# Prompt terms are usually comma-separated. English terms between Korean ones
+# must be preserved instead of being fed to Marian.
+_PROMPT_SPLIT_RE = re.compile(r"\s*[,;\n]\s*")
 _MAX_CHUNK_CHARS = 360
 
 
@@ -107,7 +110,7 @@ class Translator:
 
         started = time.perf_counter()
         try:
-            translated = self._translate_chunks(source, limit)
+            translated = self._translate_prompt(source, limit)
         except Exception as exc:
             message = f"번역 모델을 실행하지 못했습니다: {exc}"
             logger.warning("Translation failed: %s", exc, exc_info=True)
@@ -192,6 +195,26 @@ class Translator:
                 self.model_dir,
                 len(tokenizer),
             )
+
+    def _translate_prompt(self, text: str, limit: int) -> str:
+        """Translate only the Korean terms, preserving English prompt terms.
+
+        Image prompts commonly mix a Korean subject with English style words
+        (``숲속을 달리는 호랑이, cinematic lighting``). Marian would mangle those
+        English terms, so translate comma-separated segments individually and
+        leave segments without Hangul untouched.
+        """
+        outputs: list[str] = []
+        for segment in _PROMPT_SPLIT_RE.split(text):
+            segment = segment.strip()
+            if not segment:
+                continue
+            if self.is_korean(segment):
+                translated = self._translate_chunks(segment, limit)
+                outputs.append(translated or segment)
+            else:
+                outputs.append(segment)
+        return self._clean(", ".join(outputs))
 
     def _translate_chunks(self, text: str, limit: int) -> str:
         self._load()
