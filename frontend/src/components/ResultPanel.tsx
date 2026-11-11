@@ -6,13 +6,14 @@ import type {
   ResizeFilter,
 } from "../types";
 import { assetUrl } from "../api/client";
-import { DownloadIcon, PaletteIcon, RefreshIcon, SparkIcon } from "./Icons";
+import { DownloadIcon, PaletteIcon, RefreshIcon, SparkIcon, TrashIcon } from "./Icons";
 
 interface ResultPanelProps {
   kind: PageKind;
   display: DisplayResult | null;
   busy: boolean;
   onRegenerate: () => void;
+  onDelete: () => void;
 }
 
 const POSTPROCESS_LABELS: Record<PostProcessMode, string> = {
@@ -45,7 +46,7 @@ const EMPTY_PIXELS = [
   "11000011",
 ];
 
-export function ResultPanel({ kind, display, busy, onRegenerate }: ResultPanelProps) {
+export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: ResultPanelProps) {
   const isImage = kind === "image";
   const result = display?.result ?? null;
   const scale = result?.preview_scale ?? 1;
@@ -285,6 +286,15 @@ export function ResultPanel({ kind, display, busy, onRegenerate }: ResultPanelPr
             >
               <RefreshIcon size={16} />
               다시 생성
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-delete"
+              onClick={onDelete}
+              disabled={busy}
+            >
+              <TrashIcon size={16} />
+              삭제
             </button>
             <a
               className="text-button result-original-link"

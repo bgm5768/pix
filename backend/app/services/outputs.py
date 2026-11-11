@@ -10,7 +10,7 @@ from typing import Any
 
 from PIL import Image
 
-from app.config import Settings
+from app.config import PROJECT_ROOT, Settings
 from app.schemas.models import (
     OutputItem,
     OutputsResponse,
@@ -189,6 +189,7 @@ def image_result_info(
     mode: str = "icon",
     candidates_generated: int = 1,
     candidate_index: int = 0,
+    warnings: list[str] | None = None,
 ) -> ResultInfo:
     """Result metadata for the image generator page (no pixel postprocess)."""
     _safe_job_id(job_id)
@@ -209,7 +210,7 @@ def image_result_info(
         mode=_asset_mode(mode),  # type: ignore[arg-type]
         kind="image",
         quality=[],
-        warnings=[],
+        warnings=list(warnings or []),
         candidates_generated=max(1, int(candidates_generated)),
         candidate_index=max(0, int(candidate_index)),
         candidate_score=0.0,
@@ -376,3 +377,51 @@ def find_download_path(settings: Settings, job_id: str, kind: str = "pixel") -> 
         reverse=True,
     )
     return candidates[0] if candidates else None
+
+
+def delete_output(settings: Settings, job_id: str) -> list[str]:
+    """Remove every artifact belonging to a job.
+
+    Files are named ``{job_id}_...`` in the output folders and
+    ``{job_id}.json`` in metadata, so the job id is enough to find originals,
+    candidates, cutouts, crops, previews, final images, and metadata.
+    """
+    _safe_job_id(job_id)
+    directories = (
+        settings.originals_dir,
+        settings.pixel_dir,
+        settings.previews_dir,
+        settings.images_dir,
+        settings.image_previews_dir,
+        settings.cutouts_dir,
+        settings.crops_dir,
+        settings.candidates_dir,
+    )
+    removed: list[str] = []
+    for directory in directories:
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob(f"{job_id}_*")):
+            if not path.is_file():
+                continue
+            try:
+                path.unlink()
+            except OSError:
+                continue
+            removed.append(_display_path(path))
+    metadata_path = settings.metadata_dir / f"{job_id}.json"
+    if metadata_path.is_file():
+        try:
+            metadata_path.unlink()
+        except OSError:
+            pass
+        else:
+            removed.append(_display_path(metadata_path))
+    return removed
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)

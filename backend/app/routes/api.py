@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from app.config import Settings
 from app.schemas.models import (
     CancelResponse,
     ComfyStatus,
+    DeleteOutputResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateKind,
@@ -22,13 +24,15 @@ from app.schemas.models import (
     ModelStatus,
     OutputsResponse,
     QueueStatus,
+    TranslateRequest,
+    TranslateResponse,
 )
 from app.services.comfy_client import ComfyClient
-from app.services.errors import JobNotFoundError, PixelForgeError
+from app.services.errors import JobConflictError, JobNotFoundError, PixelForgeError
 from app.services.job_manager import JobManager
 from app.services.model_catalog import model_files
 from app.services.model_downloads import ModelDownloadManager
-from app.services.outputs import find_download_path, list_outputs
+from app.services.outputs import delete_output, find_download_path, list_outputs
 
 router = APIRouter(prefix="/api", tags=["pixelforge"])
 
@@ -47,6 +51,20 @@ def _jobs(request: Request) -> JobManager:
 
 def _downloads(request: Request) -> ModelDownloadManager:
     return request.app.state.downloads
+
+
+@router.post("/translate", response_model=TranslateResponse)
+async def translate_prompt(payload: TranslateRequest, request: Request) -> TranslateResponse:
+    translator = request.app.state.translator
+    result = await asyncio.to_thread(translator.translate, payload.text)
+    return TranslateResponse(
+        source=result.source,
+        text=result.text,
+        translated=result.translated,
+        model=result.model,
+        elapsed_ms=result.elapsed_ms,
+        error=result.error,
+    )
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -72,6 +90,26 @@ async def get_outputs(
     kind: GenerateKind = Query(default="pixel"),
 ) -> OutputsResponse:
     return list_outputs(_settings(request), limit=limit, kind=kind)
+
+
+@router.delete("/outputs/{job_id}", response_model=DeleteOutputResponse)
+async def delete_output_result(job_id: str, request: Request) -> DeleteOutputResponse:
+    if _jobs(request).is_busy(job_id):
+        raise JobConflictError(
+            "진행 중이거나 대기 중인 작업의 결과는 삭제할 수 없습니다. 완료된 뒤 다시 시도해 주세요."
+        )
+    try:
+        deleted = delete_output(_settings(request), job_id)
+    except ValueError as exc:
+        raise JobNotFoundError(str(exc)) from exc
+    if not deleted:
+        raise JobNotFoundError("삭제할 결과를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.")
+    return DeleteOutputResponse(
+        job_id=job_id,
+        deleted=deleted,
+        count=len(deleted),
+        message=f"결과 파일 {len(deleted)}개를 삭제했습니다.",
+    )
 
 
 @router.get("/models/catalog", response_model=ModelCatalogResponse)
@@ -204,5 +242,7 @@ async def config(request: Request) -> dict:
         "default_image_candidates": generation.image_default_candidates,
         "default_image_negative_prompt": generation.image_negative_prompt,
         "default_negative_prompt": generation.negative_prompt,
+        "translation_enabled": settings.translation.enabled,
+        "translation_model": Path(settings.translation.model_dir).name,
         "max_pending": settings.jobs.max_pending,
     }

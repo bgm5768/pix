@@ -121,6 +121,15 @@ storage:
   candidates_dir: 'outputs/candidates'
   logs_dir: 'logs'
 
+translation:
+  # Image-page prompts containing Hangul are translated to English offline.
+  # The model is the quantized ONNX build of Helsinki-NLP/opus-mt-ko-en.
+  # start.bat downloads it automatically when it is missing.
+  enabled: true
+  model_dir: 'models/translation/opus-mt-ko-en'
+  max_new_tokens: 256
+  cache_size: 256
+
 jobs:
   max_pending: 2
   poll_interval_seconds: 0.7

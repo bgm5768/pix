@@ -23,6 +23,7 @@ import type {
   OutputSize,
   PostProcessMode,
   ResizeFilter,
+  TranslationPreview,
 } from "./types";
 
 const KEY_PROMPT = "pixelforge.prompt";
@@ -53,6 +54,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   imageSize: 1024,
   imageCheckpoint: null,
   imageLora: null,
+  autoTranslate: true,
+};
+
+const EMPTY_TRANSLATION: TranslationPreview = {
+  source: "",
+  text: "",
+  status: "idle",
+  translated: false,
+  error: null,
 };
 
 const DEFAULT_OUTPUT_SIZES: OutputSize[] = [16, 32, 64, 96, 128];
@@ -104,6 +114,8 @@ function readStoredSettings(): AppSettings | null {
       imageCheckpoint:
         typeof parsed.imageCheckpoint === "string" ? parsed.imageCheckpoint : null,
       imageLora: typeof parsed.imageLora === "string" ? parsed.imageLora : null,
+      autoTranslate:
+        typeof parsed.autoTranslate === "boolean" ? parsed.autoTranslate : true,
     };
   } catch {
     return null;
@@ -200,6 +212,8 @@ export default function App() {
     pixel: false,
     image: false,
   });
+  const [imageTranslation, setImageTranslation] =
+    useState<TranslationPreview>(EMPTY_TRANSLATION);
 
   const activeNegative = page === "image" ? imageNegative : negative;
   const activePrompt = page === "image" ? imagePrompt : prompt;
@@ -223,6 +237,66 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    if (page !== "image" || !settings.autoTranslate) {
+      setImageTranslation(EMPTY_TRANSLATION);
+      return;
+    }
+    const source = imagePrompt.trim();
+    if (!source) {
+      setImageTranslation(EMPTY_TRANSLATION);
+      return;
+    }
+    if (!/[가-힣]/.test(source)) {
+      setImageTranslation({
+        source,
+        text: source,
+        status: "idle",
+        translated: false,
+        error: null,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setImageTranslation({
+        source,
+        text: "",
+        status: "loading",
+        translated: false,
+        error: null,
+      });
+      api
+        .translatePrompt(source)
+        .then((result) => {
+          if (cancelled) return;
+          setImageTranslation({
+            source,
+            text: result.text || source,
+            status: result.error ? "error" : "done",
+            translated: result.translated,
+            error: result.error,
+          });
+        })
+        .catch((cause) => {
+          if (cancelled) return;
+          setImageTranslation({
+            source,
+            text: "",
+            status: "error",
+            translated: false,
+            error: cause instanceof Error ? cause.message : "번역 요청에 실패했습니다.",
+          });
+        });
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [page, imagePrompt, settings.autoTranslate]);
 
   const refreshOutputs = useCallback(async (kind: PageKind) => {
     try {
@@ -268,6 +342,7 @@ export default function App() {
             imageSize: loaded.default_image_size,
             imageCheckpoint: loaded.image_checkpoint || null,
             imageLora: loaded.image_lora || "",
+            autoTranslate: true,
           });
         } else {
           // Keep saved choices, but fill in a model that was never chosen so the
@@ -465,8 +540,35 @@ export default function App() {
         seed = parsed;
       }
 
+      let promptForGeneration = trimmed;
+      let translatePrompt = false;
+      if (isImage && settings.autoTranslate) {
+        translatePrompt = true;
+        if (/[가-힣]/.test(trimmed)) {
+          try {
+            const ready =
+              imageTranslation.source === trimmed &&
+              imageTranslation.status === "done" &&
+              imageTranslation.translated &&
+              imageTranslation.text
+                ? imageTranslation.text
+                : null;
+            if (ready) {
+              promptForGeneration = ready;
+            } else {
+              const result = await api.translatePrompt(trimmed);
+              if (result.text && !result.error) {
+                promptForGeneration = result.text;
+              }
+            }
+          } catch {
+            // The backend translates again when translate_prompt is true.
+          }
+        }
+      }
+
       const payload: GenerateRequest = {
-        prompt: trimmed,
+        prompt: promptForGeneration,
         negative_prompt: (isImage ? imageNegative : negative).trim() || null,
         mode: isImage ? "icon" : settings.mode,
         output_size: settings.outputSize,
@@ -483,6 +585,7 @@ export default function App() {
         lora: isImage ? (settings.imageLora ?? "") : settings.lora,
         kind: targetPage,
         image_size: settings.imageSize,
+        translate_prompt: translatePrompt,
       };
 
       setErrors((current) => ({ ...current, [targetPage]: null }));
@@ -509,7 +612,7 @@ export default function App() {
         }));
       }
     },
-    [page, prompt, imagePrompt, negative, imageNegative, settings, generating],
+    [page, prompt, imagePrompt, negative, imageNegative, settings, generating, imageTranslation],
   );
 
   const handleCancel = useCallback(async () => {
@@ -615,6 +718,59 @@ export default function App() {
     [generating],
   );
 
+  const deleteResult = useCallback(
+    async (kind: PageKind, jobId: string, promptText?: string) => {
+      if (generating[kind]) return;
+      const label = promptText?.trim()
+        ? `"${promptText.trim().slice(0, 80)}" 결과`
+        : "이 결과";
+      const confirmed = window.confirm(
+        `${label}를 삭제할까요?\n\n원본·후보·최종 이미지와 메타데이터가 모두 삭제되며 되돌릴 수 없습니다.`,
+      );
+      if (!confirmed) return;
+      try {
+        const response = await api.deleteOutput(jobId);
+        setOutputsByPage((current) => ({
+          ...current,
+          [kind]: current[kind].filter((item) => item.job_id !== jobId),
+        }));
+        setDisplays((current) =>
+          current[kind]?.jobId === jobId ? { ...current, [kind]: null } : current,
+        );
+        setJobs((current) =>
+          current[kind]?.job_id === jobId ? { ...current, [kind]: null } : current,
+        );
+        setJobIds((current) =>
+          current[kind] === jobId ? { ...current, [kind]: null } : current,
+        );
+        setErrors((current) => ({ ...current, [kind]: null }));
+        setNotices((current) => ({
+          ...current,
+          [kind]: response.message || "결과를 삭제했습니다.",
+        }));
+      } catch (cause) {
+        setErrors((current) => ({
+          ...current,
+          [kind]: cause instanceof Error ? cause.message : "결과를 삭제하지 못했습니다.",
+        }));
+      }
+    },
+    [generating],
+  );
+
+  const handleDeleteOutput = useCallback(
+    (item: OutputItem) => {
+      void deleteResult(item.kind ?? "pixel", item.job_id, item.prompt);
+    },
+    [deleteResult],
+  );
+
+  const handleDeleteCurrent = useCallback(() => {
+    const display = displays[page];
+    if (!display) return;
+    void deleteResult(page, display.jobId, display.prompt);
+  }, [deleteResult, displays, page]);
+
   const outputSizes = config?.output_sizes?.length ? config.output_sizes : DEFAULT_OUTPUT_SIZES;
   const imageSizes = config?.image_sizes?.length ? config.image_sizes : IMAGE_SIZES;
   const backendDown = Boolean(healthError) && !health;
@@ -697,6 +853,11 @@ export default function App() {
             onCancel={() => void handleCancel()}
             busy={generating[page]}
             canGenerate={activePrompt.trim().length > 0}
+            autoTranslate={settings.autoTranslate}
+            onAutoTranslateChange={(value) =>
+              setSettings((current) => ({ ...current, autoTranslate: value }))
+            }
+            translation={page === "image" ? imageTranslation : null}
           />
           <StatusPanel
             kind={page}
@@ -730,6 +891,7 @@ export default function App() {
             display={displays[page]}
             busy={generating[page]}
             onRegenerate={handleRegenerate}
+            onDelete={() => void handleDeleteCurrent()}
           />
           <Gallery
             kind={page}
@@ -737,6 +899,7 @@ export default function App() {
             loading={outputsLoading}
             disabled={generating[page]}
             onSelect={handleSelectOutput}
+            onDelete={handleDeleteOutput}
           />
         </div>
       </main>

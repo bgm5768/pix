@@ -67,6 +67,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
+if not exist "%ROOT%\models\translation\opus-mt-ko-en\onnx\encoder_model_quantized.onnx" (
+  echo        Downloading the Korean-English translation model ^(about 115 MB^)...
+  "%PY%" "%ROOT%\scripts\download_translation_model.py"
+  if errorlevel 1 echo        [WARN] Translation model download failed. Korean image prompts will be sent as-is.
+)
+
 if not exist "%ROOT%\frontend\dist\index.html" (
   echo [3/4] Building the frontend ^(first run only^)...
   where npm >nul 2>&1

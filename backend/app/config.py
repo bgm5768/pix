@@ -114,6 +114,14 @@ class GenerationConfig(BaseModel):
     negative_prompt: str = ""
 
 
+class TranslationConfig(BaseModel):
+    enabled: bool = True
+    # Offline ONNX build of Helsinki-NLP/opus-mt-ko-en (quantized).
+    model_dir: str = "models/translation/opus-mt-ko-en"
+    max_new_tokens: int = 256
+    cache_size: int = 256
+
+
 class StorageConfig(BaseModel):
     originals_dir: str = "outputs/originals"
     pixel_dir: str = "outputs/pixel_art"
@@ -136,6 +144,7 @@ class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     comfyui: ComfyConfig = Field(default_factory=ComfyConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
+    translation: TranslationConfig = Field(default_factory=TranslationConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
 
@@ -192,6 +201,10 @@ class Settings(BaseModel):
     @property
     def extra_model_paths_path(self) -> Path:
         return self.resolve(self.comfyui.extra_model_paths_file)
+
+    @property
+    def translation_model_dir(self) -> Path:
+        return self.resolve(self.translation.model_dir)
 
     def ensure_directories(self) -> None:
         for path in (

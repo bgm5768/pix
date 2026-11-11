@@ -33,6 +33,7 @@ export interface GenerateRequest {
   lora?: string | null;
   kind: PageKind;
   image_size: ImageSize;
+  translate_prompt?: boolean;
 }
 
 export interface QualityCheck {
@@ -97,7 +98,9 @@ export interface JobView {
   request: GenerateRequest;
   seed_used: number | null;
   base_seed: number | null;
+  prompt_original: string | null;
   prompt_used: string | null;
+  prompt_translated: boolean;
   negative_used: string | null;
   comfy_prompt_id: string | null;
   step: number;
@@ -118,6 +121,30 @@ export interface GenerateResponse {
 export interface CancelResponse {
   job_id: string;
   status: JobStatus;
+  message: string;
+}
+
+export interface TranslateResponse {
+  source: string;
+  text: string;
+  translated: boolean;
+  model: string;
+  elapsed_ms: number;
+  error: string | null;
+}
+
+export interface TranslationPreview {
+  source: string;
+  text: string;
+  status: "idle" | "loading" | "done" | "error";
+  translated: boolean;
+  error: string | null;
+}
+
+export interface DeleteOutputResponse {
+  job_id: string;
+  deleted: string[];
+  count: number;
   message: string;
 }
 
@@ -242,6 +269,8 @@ export interface AppConfig {
   default_image_candidates: number;
   default_image_negative_prompt: string;
   default_negative_prompt: string;
+  translation_enabled?: boolean;
+  translation_model?: string;
   max_pending: number;
 }
 
@@ -261,6 +290,7 @@ export interface AppSettings {
   imageSize: ImageSize;
   imageCheckpoint: string | null;
   imageLora: string | null;
+  autoTranslate: boolean;
 }
 
 export interface DisplayResult {

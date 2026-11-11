@@ -7,6 +7,9 @@
 - **이미지 생성**: SDXL 원본 PNG를 512 / 768 / 1024px로 저장 (픽셀 후처리 없음, 기본 무검열 LUSTIFY! v2.0)
 - **페이지별 모델**: 픽셀 페이지에는 pixel/sprite 계열, 이미지 페이지에는 SDXL 일반 모델만 표시
 - **이미지 LoRA**: `sexy` 슬라이더 LoRA 선택 시 트리거 단어를 이미지 프롬프트에 자동 추가
+- **한국어 → 영어 번역**: 이미지 페이지의 한국어 프롬프트를 오프라인 ONNX 모델
+  (`opus-mt-ko-en`)로 자동 번역해 SDXL에 전달 (기본 켜짐, 영어 입력은 그대로 사용)
+- **다운로드/삭제**: 결과 패널과 갤러리 카드에서 PNG 다운로드 및 결과 삭제
 - **입력**: 텍스트 프롬프트 (한국어/영어 모두 가능)
 - **모드**: 아이콘 / 캐릭터 / 게임 오브젝트 / 타일·배경
 - **출력**: 16 / 32 / 64 / 96 / 128px 실제 크기 PNG
@@ -63,6 +66,7 @@ comfyui:
 2. 처음 실행 시 자동으로:
    - `backend/.venv` 생성
    - `backend/requirements.txt` 설치
+   - 한국어→영어 번역 모델(약 115MB)이 없으면 내려받기
    - `frontend/dist`가 없으면 `npm install` + `npm run build`
    - FastAPI 서버를 `http://0.0.0.0:8765`(모든 인터페이스)에서 시작
    - 브라우저 자동 열기 (`http://127.0.0.1:8765`)
@@ -262,6 +266,22 @@ C:\Users\<사용자>\.rembg\models\u2net\u2net.onnx
 인터넷이 없거나 모델 다운로드에 실패하면 내장된 색상 플러드필 방식으로 자동 대체되고,
 UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_enabled: false`로 끌 수도 있습니다.
 
+### 3.6 한국어 → 영어 번역 모델 (opus-mt-ko-en)
+
+이미지 페이지의 자동 번역은 PyTorch 없이 CPU에서 도는 양자화 ONNX 모델을 사용합니다.
+
+- 모델: `Helsinki-NLP/opus-mt-ko-en`의 ONNX 양자화 빌드 (Xenova 배포)
+- 저장 위치: `models/translation/opus-mt-ko-en/`
+- 크기: encoder 52.9MB + decoder 59.8MB (약 115MB)
+- 구성: `onnx/encoder_model_quantized.onnx`, `onnx/decoder_model_quantized.onnx`,
+  `config.json`, `source.spm`, `target.spm`, `vocab.json`
+- 수동 다운로드: `scripts\download_translation_model.bat`
+- 사용 패키지: `onnxruntime`, `transformers`(토크나이저 전용), `sentencepiece`, `sacremoses`
+
+`start.bat`이 모델 파일이 없을 때 자동으로 내려받습니다. `models/translation/`은
+`.gitignore`에 포함되어 저장소에는 올라가지 않습니다. 번역을 끄려면
+`config/settings.yaml`의 `translation.enabled: false`로 설정하세요.
+
 ---
 
 ## 4. 사용 방법
@@ -289,23 +309,31 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
    - 실제 픽셀 크기와 팔레트 색상 수 확인
    - **PNG 저장**으로 실제 크기 PNG 다운로드
    - **다시 생성**으로 새 시드 재생성
+   - **삭제**로 이 작업의 원본·후보·최종 결과·메타데이터 제거
 8. 최근 결과는 오른쪽 **ARCHIVE** 갤러리에 저장되며, 클릭하면 다시 볼 수 있습니다.
+   카드에 마우스를 올리면 다운로드/삭제 버튼이 나타납니다.
 
 ### 4.2 이미지 생성기
 
 1. 상단에서 **이미지 생성기** 탭을 누릅니다.
 2. **POSITIVE PROMPT**에 원하는 장면을 자연어로 입력합니다.
-   예: `a lone lighthouse on a rocky cliff at sunset, cinematic lighting, highly detailed, wide shot`
+   예: `숲속을 달리는 호랑이, cinematic lighting, highly detailed, wide shot`
+   한국어가 포함되어 있으면 **한국어 → 영어 자동 번역**(기본 켜짐)이 입력 아래에
+   영어 프롬프트를 미리 보여줍니다. 생성 시에는 이 영어 문장이 SDXL로 전달됩니다.
+   이미 영어인 문장은 번역하지 않고 그대로 사용합니다. 자동 번역을 끄려면 토글을
+   해제하세요.
 3. 필요하면 **NEGATIVE PROMPT**를 수정합니다. 이미지 페이지의 기본 네거티브는
    인물 해부/저품질/워터마크 위주이며 픽셀 전용 문구가 포함되지 않습니다.
+   네거티브에 한국어가 있으면 이것도 함께 번역됩니다.
 4. **IMAGE RESOLUTION**에서 512 / 768 / 1024px를 선택합니다. 1024px가 가장 선명합니다.
 5. **MODEL STACK**에서 이미지용 체크포인트를 선택합니다. 기본값은 `LUSTIFY! v2.0`이며
    `NoobAI-XL`, `SDXL base`로 바꿀 수 있습니다. 픽셀 전용 체크포인트/LoRA는 목록에
    나타나지 않습니다. LoRA를 고르면 트리거 단어가 프롬프트에 자동 추가되고, 쓰지 않으려면
    `사용 안 함`을 선택합니다.
 6. **이미지 생성**을 누릅니다. 후보는 1개만 생성됩니다.
-7. 결과 패널에서 SDXL 원본 PNG를 확인하고 **PNG 저장**으로 내려받습니다.
+7. 결과 패널에서 SDXL 원본 PNG를 확인하고 **PNG 저장**으로 내려받거나 **삭제**합니다.
 8. 최근 이미지는 오른쪽 **이미지 갤러리**에 저장되며, 클릭하면 다시 볼 수 있습니다.
+   카드에 마우스를 올리면 다운로드/삭제 버튼이 나타납니다.
 
 이미지 페이지는 다음을 적용하지 않습니다.
 
@@ -315,6 +343,17 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 
 즉 SDXL이 만든 원본을 그대로 보존하며, 후처리 단계 없이 저장합니다. 픽셀 결과와 이미지
 결과는 서로 다른 폴더(`outputs/pixel_art`, `outputs/images`)에 저장되어 섞이지 않습니다.
+
+### 4.3 다운로드 · 삭제
+
+- **다운로드**: 결과 패널의 **PNG 저장**, 또는 갤러리 카드의 다운로드 아이콘을 누릅니다.
+  픽셀은 실제 크기 PNG(`pixelforge_<job>_<size>px.png`), 이미지는 선택한 해상도의
+  SDXL 원본 PNG(`pixelforge_<job>_image_<size>px.png`)로 저장됩니다.
+- **삭제**: 결과 패널의 **삭제** 또는 갤러리 카드의 휴지통 아이콘을 누르고 확인합니다.
+  `{job_id}_*`로 시작하는 원본·후보·컷아웃·크롭·최종 PNG·미리보기와
+  `metadata/{job_id}.json`이 함께 삭제되며 되돌릴 수 없습니다.
+- 생성 중이거나 대기열에 있는 작업은 삭제할 수 없습니다. 완료된 뒤 다시 시도하세요.
+- 이미 삭제된 결과를 다시 삭제하면 `404 JOB_NOT_FOUND`가 반환됩니다.
 
 ### 권장 설정 (픽셀 생성기)
 
@@ -346,9 +385,10 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 
 ```
 [React UI · 픽셀 생성기 / 이미지 생성기]
-   │ POST /api/generate { kind: "pixel" | "image", ... }
+   │ 이미지 + 한국어: POST /api/translate → 영어 미리보기 (ONNX, CPU)
+   │ POST /api/generate { kind: "pixel" | "image", prompt: 영어, translate_prompt: true }
    ▼
-[FastAPI JobManager] ── 1개 활성 + 최대 2개 대기 ──▶ [ComfyUI HTTP/WebSocket]
+[FastAPI JobManager] ── 번역(방어적) ── 1개 활성 + 최대 2개 대기 ──▶ [ComfyUI HTTP/WebSocket]
    │                                                   │
    │                                                   ├─ CheckpointLoaderSimple (SDXL)
    │                                                   ├─ LoraLoader (선택 사항)
@@ -358,7 +398,7 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
    │                                                   ├─ VAEDecode
    │                                                   └─ SaveImage
    │                                        (pixel: 후보 1..N, seed = base_seed + index)
-   │                                        (image: 후보 1, 원본 프롬프트 그대로)
+   │                                        (image: 후보 1, 번역된 영어 프롬프트)
    ▼
    ├─ kind=pixel → [Pillow/NumPy 후처리]
    │    ├─ 패딩 rembg u2net 배경 분리 + 테두리 색상 키
@@ -387,6 +427,9 @@ outputs/
 - 원본과 최종 결과를 **별도 파일**로 보존합니다.
 - 픽셀 결과는 투명 모드에서 binary alpha를 쓰는 RGBA PNG, 불투명 모드에서 RGB PNG입니다.
 - 이미지 결과는 항상 RGB PNG이며, `kind: "image"`와 `image_size`가 메타데이터에 기록됩니다.
+- 이미지 프롬프트에 한글이 있으면 `JobManager`가 ONNX 번역 모델로 영어로 바꾼 뒤
+  SDXL에 전달합니다. 원문은 `prompt_original`, 실제 사용 문장은 `prompt_used`,
+  번역 여부는 `prompt_translated`로 메타데이터와 작업 응답에 남습니다.
 - ComfyUI WebSocket으로 진행률을 받고, 완료는 `/history/{prompt_id}` 폴링으로 확인합니다.
 - ComfyUI가 꺼져 있으면 작업 시작 전에 `ComfyLauncher`가 기존 설치를 자동 기동합니다.
 
@@ -402,6 +445,8 @@ outputs/
 | GET | `/api/jobs/{job_id}` | 작업 상태/진행률/결과 조회 |
 | POST | `/api/jobs/{job_id}/cancel` | 작업 취소 |
 | GET | `/api/outputs?limit=30&kind=pixel` | 최근 결과 목록 (`kind=pixel` 기본, `kind=image`) |
+| DELETE | `/api/outputs/{job_id}` | 결과 파일과 메타데이터 삭제 (진행 중 작업은 409) |
+| POST | `/api/translate` | 한국어 프롬프트를 영어로 번역 (오프라인 ONNX, CPU) |
 | GET | `/api/health` | 백엔드/ComfyUI/GPU/모델/큐 상태 |
 | GET | `/api/models/catalog` | 다운로드 가능한 모델과 설치/진행 상태 |
 | POST | `/api/models/downloads/{id}` | 모델 다운로드 시작 |
@@ -462,11 +507,38 @@ $result.result.image_url      # /files/images/<job_id>_image_1024.png
 $result.result.download_url   # /api/download/<job_id>?kind=image
 ```
 
+한국어 프롬프트 번역:
+
+```powershell
+$body = @{ text = "숲속을 달리는 호랑이" } | ConvertTo-Json
+$translated = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/translate" `
+  -Method Post -ContentType "application/json" -Body $body
+
+$translated.text        # A tiger running through a forest
+$translated.translated  # True
+```
+
+- 한글이 없으면 `translated: false`와 함께 입력 문장을 그대로 돌려줍니다.
+- 번역 모델은 `models/translation/opus-mt-ko-en`에 있으며 `start.bat`이 자동으로 받습니다.
+- `POST /api/generate`의 `translate_prompt`(기본 `true`)가 켜져 있으면, 프론트엔드에서
+  번역하지 못한 경우에도 백엔드가 이미지 프롬프트를 다시 번역합니다.
+
+결과 삭제:
+
+```powershell
+$deleted = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/outputs/<job_id>" -Method Delete
+$deleted.count     # 삭제된 파일 수
+$deleted.deleted   # 삭제된 상대 경로 목록
+```
+
 `GET /api/jobs/{job_id}` 응답에는 다음 정보가 포함됩니다.
 
 - `request.kind`, `request.image_size`: 요청한 페이지 종류와 이미지 해상도
 - `result.kind`: `"pixel"` 또는 `"image"`
 - `result.image_url`, `result.image_preview_url`: 이미지 페이지 결과 경로
+- `prompt_original`: 사용자가 입력한 원문
+- `prompt_used`: 실제 SDXL에 전달된 문장 (번역문 + LoRA 트리거)
+- `prompt_translated`: 이번 작업에서 번역이 적용됐는지 여부
 - `prompt_plan`: 구조화된 프롬프트(피사체/시점/구도/배경/positive/negative/source, 이미지 모드는 `null`)
 - `base_seed`: 사용자가 요청한 기준 시드
 - `seed_used`: 실제 선택된 후보의 시드 (`base_seed + candidate_index`)
@@ -583,6 +655,22 @@ $result.result.download_url   # /api/download/<job_id>?kind=image
 - **모델 설치**: `LUSTIFY! v2.0` 6,938,043,264 bytes와 `sexy.safetensors` 8,789,076 bytes를
   앱의 `받기` 기능으로 내려받고 `/api/health`에 `category: image`로 등록되는 것을 확인했습니다.
 
+### 번역 · 다운로드/삭제 검증 (2026-11-11)
+
+- **번역 API**: `호랑이` → `Tiger`, `숲속을 달리는 호랑이` →
+  `A tiger running through a forest`, `검은 고양이` → `Black cat`을 확인했습니다.
+  이미 영어인 문장은 `translated: false`로 원문 그대로 반환됩니다.
+- **이미지 E2E**: `숲속을 달리는 호랑이` 요청(작업 `6e305a264d95`, 512px)에서
+  `prompt_original`은 한국어, `prompt_used`는 `A tiger running through a forest`,
+  `prompt_translated: true`로 기록됐습니다. 다운로드는 `200 image/png` 474,804 bytes,
+  삭제 후 잔여 파일 0개를 확인했습니다.
+- **픽셀 회귀**: 같은 백엔드에서 픽셀 작업(작업 `b78140c4a23e`)이 정상 완료되고
+  `prompt_plan`이 생성됐습니다. 다운로드 `200 image/png`, 삭제 후 잔여 파일 0개입니다.
+- **UI**: 이미지 페이지의 자동 번역 토글이 기본 `AUTO`로 켜져 있고, 한국어 입력 시
+  영어 미리보기가 표시됩니다. 갤러리 카드의 다운로드 링크/파일명과 삭제 확인 창을
+  검증했으며, 삭제 후 갤러리 개수와 `outputs/` 파일이 함께 줄어드는 것을 확인했습니다.
+- **삭제 오류**: 이미 삭제된 작업을 다시 삭제하면 `404 JOB_NOT_FOUND`가 반환됩니다.
+
 > LUSTIFY! v2.0은 무검열 체크포인트이므로 성인 콘텐츠가 생성될 수 있습니다. 법적 성인만
 > 사용하고, 실제 인물·미성년자와 무관한 로컬 생성에만 사용하세요.
 
@@ -641,7 +729,8 @@ $result.result.download_url   # /api/download/<job_id>?kind=image
 pix/
 ├─ start.bat                       # 원클릭 실행
 ├─ scripts/
-│  ├─ start.bat                    # venv/의존성/프론트 빌드/서버 시작
+│  ├─ start.bat                    # venv/의존성/번역 모델/프론트 빌드/서버 시작
+│  ├─ download_translation_model.bat  # 한국어→영어 ONNX 모델 다운로드
 │  ├─ deploy_pages.bat             # /pix/ 빌드 후 gh-pages 브랜치 배포
 │  └─ check_environment.bat        # Python/Node/ComfyUI/모델/GPU 점검
 ├─ backend/
@@ -657,13 +746,16 @@ pix/
 │        ├─ job_manager.py         # 단일 워커 큐, 픽셀/이미지 분기, 진행률, 후처리 오케스트레이션
 │        ├─ prompt_engine.py       # 한국어 구조화 프롬프트 + 선택적 Ollama
 │        ├─ postprocess.py         # 피사체 추출/크롭/스케일/양자화/검증
+│        ├─ translator.py          # 한국어→영어 ONNX 번역, 청크/캐시/폴백
 │        ├─ model_catalog.py       # 체크포인트/LoRA 목록과 pixel/image/other 분류
 │        ├─ model_downloads.py     # 모델 다운로드/이어받기/취소
-│        ├─ outputs.py             # 픽셀/이미지 저장, 출력 목록, 다운로드
+│        ├─ outputs.py             # 픽셀/이미지 저장, 출력 목록, 다운로드/삭제
 │        └─ errors.py              # 사용자 친화적 오류 타입
 ├─ config/
-│  ├─ settings.yaml                # 실행 설정
+│  ├─ settings.yaml                # 실행 설정 (translation 포함)
 │  └─ comfyui_model_paths.generated.yaml  # 자동 생성(ComfyUI 모델 경로)
+├─ models/
+│  └─ translation/opus-mt-ko-en/   # 오프라인 번역 모델 (git 제외, start.bat이 다운로드)
 ├─ workflows/
 │  └─ text_to_pixel.json           # ComfyUI API 워크플로
 ├─ frontend/
@@ -699,10 +791,13 @@ pix/
 
 ## 10. 제약 사항
 
-- **로컬 전용**: `127.0.0.1`에만 바인딩됩니다. 인증/결제/공개 호스팅은 없습니다.
-  GitHub Pages는 UI만 호스팅하며, 생성은 같은 PC의 로컬 백엔드/GPU에서 실행됩니다.
-- **Pages 접속 범위**: `https://bgm5768.github.io/pix/`는 백엔드가 실행 중인 같은 PC에서만
-  동작합니다. 다른 PC/모바일에서 쓰려면 HTTPS 터널과 별도 인증 구성이 필요합니다.
+- **로컬 우선**: 백엔드는 기본적으로 `0.0.0.0:8765`에 바인딩되어 같은 LAN에서 접속할 수
+  있습니다. 외부 공개는 `scripts/share_tunnel.bat`의 Cloudflare Quick Tunnel을 사용하며,
+  인증/결제/공개 호스팅은 없습니다. GitHub Pages는 UI만 호스팅하고 생성은 이 PC의
+  로컬 백엔드/GPU에서 실행됩니다.
+- **Pages 접속 범위**: `https://bgm5768.github.io/pix/`에서 생성하려면 이 PC의 백엔드가
+  실행 중이어야 하며, 외부 네트워크에서는 HTTPS 터널 주소를 UI에 입력해야 합니다.
+  터널 주소를 아는 사람은 누구나 이 PC의 GPU를 사용할 수 있으므로 공유 범위를 주의하세요.
 - **단일 사용자**: 동시에 1개 작업만 GPU에서 실행됩니다.
 - **스프라이트 1개**: 애니메이션, 스프라이트 시트, 다중 뷰는 범위 밖입니다.
 - **결과 편차**: SDXL + LoRA 특성상 시드/프롬프트에 따라 품질이 달라집니다.
@@ -720,6 +815,12 @@ pix/
   사용하고, 실제 인물·미성년자와 무관한 로컬 생성에만 사용하세요.
 - **이미지 페이지**: SDXL 원본을 그대로 저장하므로 픽셀 팔레트/배경 제거/자동 검증이 없습니다.
   후보도 1개만 생성되며, 결과는 `outputs/images`에 별도 보관됩니다.
+- **자동 번역**: 이미지 페이지에서만 동작하며, 한글이 포함된 문장만 번역합니다. 첫 번역은
+  ONNX 모델을 메모리에 올리느라 1초 안팎 걸릴 수 있습니다. 번역 모델(약 115MB)은
+  `start.bat`이 자동으로 받고, `config/settings.yaml`의 `translation.enabled: false`로
+  끌 수 있습니다. 번역 품질은 Marian 모델 특성상 완벽하지 않으므로 미리보기를 확인하세요.
+- **삭제**: 완료된 결과의 모든 파일과 메타데이터를 제거하며 되돌릴 수 없습니다.
+  진행 중/대기 중 작업은 삭제할 수 없습니다.
 - **모델 분류**: 파일명 키워드(`pixel`, `sprite`, `dot`, `8bit`, `retro` 등)로 페이지를
   나누므로, 이름에 해당 키워드가 없는 픽셀 모델은 픽셀 페이지 목록에 나타나지 않을 수 있습니다.
   API 요청에는 `checkpoint`를 직접 지정할 수 있습니다.

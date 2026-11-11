@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   CancelResponse,
+  DeleteOutputResponse,
   GenerateRequest,
   GenerateResponse,
   HealthResponse,
@@ -9,6 +10,7 @@ import type {
   ModelDownloadItem,
   OutputsResponse,
   PageKind,
+  TranslateResponse,
 } from "../types";
 
 const ENV_API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(
@@ -121,6 +123,15 @@ export const api = {
     }),
   getOutputs: (limit = 24, kind: PageKind = "pixel") =>
     request<OutputsResponse>(`/api/outputs?limit=${limit}&kind=${kind}`),
+  deleteOutput: (jobId: string) =>
+    request<DeleteOutputResponse>(`/api/outputs/${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
+    }),
+  translatePrompt: (text: string) =>
+    request<TranslateResponse>("/api/translate", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
   getModelCatalog: () => request<ModelCatalogResponse>("/api/models/catalog"),
   startModelDownload: (downloadId: string) =>
     request<ModelDownloadItem>(`/api/models/downloads/${encodeURIComponent(downloadId)}`, {

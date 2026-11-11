@@ -1,4 +1,4 @@
-import type { PageKind } from "../types";
+import type { PageKind, TranslationPreview } from "../types";
 import { InfoIcon, SparkIcon, StopIcon } from "./Icons";
 
 interface PromptPanelProps {
@@ -12,6 +12,9 @@ interface PromptPanelProps {
   onCancel: () => void;
   busy: boolean;
   canGenerate: boolean;
+  autoTranslate: boolean;
+  onAutoTranslateChange: (value: boolean) => void;
+  translation: TranslationPreview | null;
 }
 
 export function PromptPanel({
@@ -25,6 +28,9 @@ export function PromptPanel({
   onCancel,
   busy,
   canGenerate,
+  autoTranslate,
+  onAutoTranslateChange,
+  translation,
 }: PromptPanelProps) {
   const isImage = kind === "image";
   return (
@@ -48,7 +54,7 @@ export function PromptPanel({
         value={prompt}
         placeholder={
           isImage
-            ? "예: a lone lighthouse on a rocky cliff at sunset, cinematic lighting, highly detailed, wide shot"
+            ? "예: 숲속을 달리는 호랑이, cinematic lighting, highly detailed, wide shot"
             : "예: a tiny knight standing and holding a glowing sword, full body, feet visible, side view, game sprite, fantasy"
         }
         onChange={(event) => onPromptChange(event.target.value)}
@@ -63,6 +69,45 @@ export function PromptPanel({
         <span>{prompt.length} / 2000</span>
         <span>Ctrl + Enter로 생성</span>
       </div>
+
+      {isImage && (
+        <>
+          <div className="translate-row">
+            <label className="translate-toggle">
+              <input
+                type="checkbox"
+                checked={autoTranslate}
+                onChange={(event) => onAutoTranslateChange(event.target.checked)}
+              />
+              <span>한국어 → 영어 자동 번역</span>
+            </label>
+            <span className={`translate-badge ${autoTranslate ? "on" : ""}`}>
+              {autoTranslate ? "AUTO" : "OFF"}
+            </span>
+          </div>
+          {autoTranslate && translation?.source && (
+            <div className={`translation-preview ${translation.status}`}>
+              <span className="translation-label">ENGLISH PROMPT</span>
+              {translation.status === "loading" ? (
+                <p className="translation-loading">
+                  <span className="mini-spinner" />
+                  영어로 번역하는 중...
+                </p>
+              ) : translation.status === "error" ? (
+                <p className="translation-error">
+                  {translation.error ?? "번역하지 못했습니다. 입력한 프롬프트로 생성합니다."}
+                </p>
+              ) : translation.translated && translation.text ? (
+                <p>{translation.text}</p>
+              ) : (
+                <p className="translation-muted">
+                  한국어가 감지되면 자동으로 영어 프롬프트로 바꿔 SDXL에 전달합니다.
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       <div className="field-label-row">
         <label className="field-label" htmlFor="negative-prompt">
@@ -85,7 +130,9 @@ export function PromptPanel({
         <InfoIcon size={15} />
         <span>
           {isImage
-            ? "SDXL 원본 이미지를 그대로 저장합니다. 픽셀 팔레트·후처리·자동 검증은 적용되지 않습니다."
+            ? autoTranslate
+              ? "한국어로 입력하면 ONNX 번역 모델이 영어 프롬프트로 바꿔 SDXL에 전달합니다. 영어 입력은 그대로 사용합니다."
+              : "자동 번역이 꺼져 있습니다. SDXL은 영어 프롬프트를 가장 잘 이해합니다."
             : "픽셀 경계·제한 팔레트·실루엣을 위한 스타일 프롬프트가 자동으로 추가됩니다. 네거티브는 직접 수정할 수 있습니다."}
         </span>
       </div>

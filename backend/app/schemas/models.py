@@ -39,6 +39,9 @@ class GenerateRequest(BaseModel):
     # string explicitly disables the LoRA for this request.
     checkpoint: str | None = Field(default=None, max_length=255)
     lora: str | None = Field(default=None, max_length=255)
+    # Image page: translate a Korean prompt into English before generation.
+    # Pixel prompts keep using the deterministic prompt engine.
+    translate_prompt: bool = True
 
     @field_validator("prompt")
     @classmethod
@@ -129,7 +132,9 @@ class JobView(BaseModel):
     request: GenerateRequest
     seed_used: int | None = None
     base_seed: int | None = None
+    prompt_original: str | None = None
     prompt_used: str | None = None
+    prompt_translated: bool = False
     negative_used: str | None = None
     comfy_prompt_id: str | None = None
     step: int = 0
@@ -257,3 +262,31 @@ class OutputItem(BaseModel):
 class OutputsResponse(BaseModel):
     items: list[OutputItem]
     total: int
+
+
+class TranslateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("text")
+    @classmethod
+    def _text_strip(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("번역할 텍스트를 입력해 주세요.")
+        return value
+
+
+class TranslateResponse(BaseModel):
+    source: str
+    text: str
+    translated: bool
+    model: str = "opus-mt-ko-en"
+    elapsed_ms: int = 0
+    error: str | None = None
+
+
+class DeleteOutputResponse(BaseModel):
+    job_id: str
+    deleted: list[str] = Field(default_factory=list)
+    count: int = 0
+    message: str = "결과를 삭제했습니다."

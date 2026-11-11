@@ -26,6 +26,9 @@ logs/*
 # Generated config
 config/comfyui_model_paths.generated.yaml
 
+# Downloaded translation model (scripts/download_translation_model.bat)
+models/translation/
+
 # Editor / OS
 .vscode/
 .idea/

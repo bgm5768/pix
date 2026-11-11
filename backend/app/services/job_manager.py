@@ -49,6 +49,7 @@ from app.services.outputs import (
 )
 from app.services.postprocess import PostProcessResult, postprocess_image
 from app.services.prompt_engine import build_prompt_plan_async
+from app.services.translator import Translator
 
 logger = logging.getLogger("pixelforge.jobs")
 
@@ -65,7 +66,9 @@ class Job:
     completed_at: datetime | None = None
     seed_used: int | None = None
     base_seed: int | None = None
+    prompt_original: str | None = None
     prompt_used: str | None = None
+    prompt_translated: bool = False
     negative_used: str | None = None
     prompt_plan: dict[str, Any] | None = None
     comfy_prompt_id: str | None = None
@@ -92,10 +95,17 @@ class Job:
 class JobManager:
     """Single-GPU job queue. Only one ComfyUI prompt runs at a time."""
 
-    def __init__(self, settings: Settings, comfy: ComfyClient, launcher: ComfyLauncher):
+    def __init__(
+        self,
+        settings: Settings,
+        comfy: ComfyClient,
+        launcher: ComfyLauncher,
+        translator: Translator | None = None,
+    ):
         self.settings = settings
         self.comfy = comfy
         self.launcher = launcher
+        self.translator = translator
         self.jobs: dict[str, Job] = {}
         self._pending: deque[str] = deque()
         self._active_id: str | None = None
@@ -178,6 +188,10 @@ class JobManager:
     def queue_counts(self) -> tuple[int, int]:
         return (1 if self._active_id else 0, len(self._pending))
 
+    def is_busy(self, job_id: str) -> bool:
+        """True while the job is running or waiting in the queue."""
+        return self._active_id == job_id or job_id in self._pending
+
     def active_job(self) -> JobView | None:
         if not self._active_id:
             return None
@@ -202,7 +216,9 @@ class JobManager:
             request=job.request,
             seed_used=job.seed_used,
             base_seed=job.base_seed,
+            prompt_original=job.prompt_original,
             prompt_used=job.prompt_used,
+            prompt_translated=job.prompt_translated,
             negative_used=job.negative_used,
             comfy_prompt_id=job.comfy_prompt_id,
             step=job.step,
@@ -456,6 +472,7 @@ class JobManager:
                     job.request.mode,
                     candidates_generated=len(candidates),
                     candidate_index=0,
+                    warnings=job.warnings,
                 )
                 job.completed_at = datetime.now(timezone.utc)
                 self._save_image_metadata(job, original_path, image_path, preview_path, started)
@@ -572,7 +589,31 @@ class JobManager:
     async def _set_prompt(self, job: Job) -> None:
         if job.request.kind == "image":
             self._resolve_models(job)
-            prompt = job.request.prompt
+            original_prompt = job.request.prompt
+            original_negative = (job.request.negative_prompt or "").strip()
+            job.prompt_original = original_prompt
+            prompt = original_prompt
+            negative = original_negative
+            translated = False
+            if job.request.translate_prompt and self.translator is not None:
+                prompt_result = await asyncio.to_thread(
+                    self.translator.translate, original_prompt
+                )
+                if prompt_result.error:
+                    job.warnings.append(prompt_result.error)
+                elif prompt_result.translated:
+                    prompt = prompt_result.text
+                    translated = True
+                if original_negative:
+                    negative_result = await asyncio.to_thread(
+                        self.translator.translate, original_negative
+                    )
+                    if negative_result.error:
+                        job.warnings.append(negative_result.error)
+                    elif negative_result.translated:
+                        negative = negative_result.text
+            job.prompt_translated = translated
+
             trigger = lora_trigger(job.lora)
             if trigger and job.request.lora_strength > 0:
                 pattern = re.compile(
@@ -583,7 +624,7 @@ class JobManager:
                     base = prompt.rstrip().rstrip(",")
                     prompt = f"{base}, {trigger}" if base.strip() else trigger
             job.prompt_used = prompt
-            job.negative_used = job.request.negative_prompt or ""
+            job.negative_used = negative
             job.prompt_plan = None
             return
         plan = await build_prompt_plan_async(
@@ -857,7 +898,9 @@ class JobManager:
             "kind": job.request.kind,
             "seed_used": job.seed_used,
             "base_seed": job.base_seed,
+            "prompt_original": job.prompt_original,
             "prompt_used": job.prompt_used,
+            "prompt_translated": job.prompt_translated,
             "negative_used": job.negative_used,
             "output_size": job.request.output_size,
             "mode": job.request.mode,
@@ -932,7 +975,9 @@ class JobManager:
             "kind": "image",
             "seed_used": job.seed_used,
             "base_seed": job.base_seed,
+            "prompt_original": job.prompt_original,
             "prompt_used": job.prompt_used,
+            "prompt_translated": job.prompt_translated,
             "negative_used": job.negative_used,
             "image_size": job.request.image_size,
             "width": job.request.image_size,
@@ -943,7 +988,7 @@ class JobManager:
             "preview_file": preview_path.name,
             "transparent": False,
             "postprocess": None,
-            "warnings": [],
+            "warnings": job.warnings,
             "candidates_requested": job.request.candidates,
             "candidates_generated": len(
                 [item for item in job.candidate_summaries if item.get("status") == "ok"]
