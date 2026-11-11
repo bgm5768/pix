@@ -76,6 +76,34 @@ class IdentityUsage(BaseModel):
     include_style: bool = False
 
 
+class GenerationDetails(BaseModel):
+    """Everything that was used for one generation, for the result inspector."""
+
+    prompt: str = ""
+    prompt_used: str = ""
+    negative_prompt: str = ""
+    prompt_translated: bool = False
+    checkpoint: str = ""
+    lora: str = ""
+    lora_enabled: bool = False
+    steps: int = 0
+    cfg: float = 0.0
+    lora_strength: float = 0.0
+    sampler: str = ""
+    scheduler: str = ""
+    width: int = 0
+    height: int = 0
+    seed: int | None = None
+    mode: str = ""
+    postprocess: str = ""
+    transparent: bool = False
+    palette_colors: int = 0
+    elapsed_seconds: float = 0.0
+    created_at: str = ""
+    references: list[ReferenceUsage] = Field(default_factory=list)
+    identity: IdentityUsage | None = None
+
+
 class ReferenceSamplesResponse(BaseModel):
     items: list[ReferenceAsset] = Field(default_factory=list)
 
@@ -254,6 +282,7 @@ class ResultInfo(BaseModel):
     panel_suspected: bool = False
     references: list[ReferenceUsage] = Field(default_factory=list)
     identity: IdentityUsage | None = None
+    details: GenerationDetails | None = None
 
 
 class JobView(BaseModel):
@@ -438,6 +467,7 @@ class OutputItem(BaseModel):
     panel_suspected: bool = False
     references: list[ReferenceUsage] = Field(default_factory=list)
     identity: IdentityUsage | None = None
+    details: GenerationDetails | None = None
 
 
 class OutputsResponse(BaseModel):

@@ -69,6 +69,32 @@ export interface IdentityUsage {
   include_style?: boolean;
 }
 
+export interface GenerationDetails {
+  prompt: string;
+  prompt_used: string;
+  negative_prompt: string;
+  prompt_translated: boolean;
+  checkpoint: string;
+  lora: string;
+  lora_enabled: boolean;
+  steps: number;
+  cfg: number;
+  lora_strength: number;
+  sampler: string;
+  scheduler: string;
+  width: number;
+  height: number;
+  seed: number | null;
+  mode: string;
+  postprocess: string;
+  transparent: boolean;
+  palette_colors: number;
+  elapsed_seconds: number;
+  created_at: string;
+  references?: ReferenceUsage[];
+  identity?: IdentityUsage | null;
+}
+
 export interface ReferenceItem extends ReferenceAsset {
   focus: ReferenceFocus;
   strength: number;
@@ -191,6 +217,7 @@ export interface ResultInfo {
   panel_suspected: boolean;
   references?: ReferenceUsage[];
   identity?: IdentityUsage | null;
+  details?: GenerationDetails | null;
 }
 
 export interface JobView {
@@ -392,6 +419,7 @@ export interface OutputItem {
   panel_suspected: boolean;
   references?: ReferenceUsage[];
   identity?: IdentityUsage | null;
+  details?: GenerationDetails | null;
 }
 
 export interface OutputsResponse {

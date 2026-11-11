@@ -21,6 +21,7 @@ from app.config import Settings
 from app.schemas.models import (
     CancelResponse,
     GenerateRequest,
+    GenerationDetails,
     IdentityUsage,
     JobListResponse,
     JobStatus,
@@ -43,7 +44,9 @@ from app.services.errors import (
 from app.services.model_catalog import is_sdxl_compatible
 from app.services.model_downloads import lora_trigger
 from app.services.outputs import (
+    build_generation_details,
     image_result_info,
+    load_metadata,
     reference_result_info,
     result_info,
     save_candidate_original,
@@ -313,6 +316,11 @@ class JobManager:
                 error_code=view.error_code,
                 postprocess_mode=view.request.postprocess,
             )
+            if job.result is not None and job.result.details is None:
+                # Older job snapshots were stored before the inspector existed;
+                # rebuild the details from the metadata file so the history
+                # entries can show their settings too.
+                self._attach_details(job)
             if job.status not in _TERMINAL_STATUSES:
                 job.status = JobStatus.CANCELLED
                 job.stage_message = "서버 재시작으로 중단됨"
@@ -607,6 +615,14 @@ class JobManager:
                 image_path, preview_path = save_image_result(
                     self.settings, job.id, image_result, job.request.image_size
                 )
+                details = self._generation_details(
+                    job,
+                    width=job.request.image_size,
+                    height=job.request.image_size,
+                    transparent=False,
+                    postprocess=None,
+                    elapsed_seconds=round(time.monotonic() - started, 2),
+                )
                 if is_reference:
                     job.result = reference_result_info(
                         self.settings,
@@ -614,6 +630,7 @@ class JobManager:
                         job.request.image_size,
                         references=job.reference_usage,
                         identity=self._identity_usage(job),
+                        details=details,
                         mode=job.request.mode,
                         candidates_generated=len(candidates),
                         candidate_index=0,
@@ -628,6 +645,7 @@ class JobManager:
                         candidates_generated=len(candidates),
                         candidate_index=0,
                         warnings=job.warnings,
+                        details=details,
                     )
                 job.completed_at = datetime.now(timezone.utc)
                 self._save_native_metadata(
@@ -697,6 +715,15 @@ class JobManager:
                 job.request.mode,
                 candidates_generated=len(candidates),
                 candidate_index=job.candidate_index,
+                details=self._generation_details(
+                    job,
+                    width=job.request.output_size,
+                    height=job.request.output_size,
+                    transparent=result.image.mode == "RGBA",
+                    postprocess=job.request.postprocess,
+                    palette_colors=result.palette_used,
+                    elapsed_seconds=round(time.monotonic() - started, 2),
+                ),
             )
             job.completed_at = datetime.now(timezone.utc)
             self._save_job_metadata(job, original_path, pixel_path, preview_path, result, started)
@@ -1435,6 +1462,68 @@ class JobManager:
             # The identity image is always one of the reference images, so the
             # upload above already produced the ComfyUI input name.
             job.identity_image_file = uploaded_by_asset.get(identity_asset, "")
+
+    def _attach_details(self, job: Job) -> None:
+        """Fill in the generation inspector data for a restored job."""
+        if job.result is None:
+            return
+        try:
+            meta = load_metadata(self.settings, job.id) or {}
+        except Exception:
+            meta = {}
+        details = build_generation_details(meta) if meta else None
+        if details is None:
+            return
+        job.result = job.result.model_copy(update={"details": details})
+
+    def _generation_details(
+        self,
+        job: Job,
+        *,
+        width: int,
+        height: int,
+        transparent: bool,
+        postprocess: str | None,
+        palette_colors: int = 0,
+        elapsed_seconds: float = 0.0,
+    ) -> GenerationDetails:
+        """Describe the model/settings used by a finished job."""
+        generation = self.settings.generation
+        identity = self._identity_usage(job)
+        meta = {
+            "request": job.request.model_dump(),
+            "prompt_original": job.prompt_original,
+            "prompt_used": job.prompt_used,
+            "negative_used": job.negative_used,
+            "prompt_translated": job.prompt_translated,
+            "seed_used": job.seed_used,
+            "width": width,
+            "height": height,
+            "transparent": transparent,
+            "postprocess": postprocess,
+            "palette_used": palette_colors,
+            "elapsed_seconds": elapsed_seconds,
+            "references": [usage.model_dump() for usage in job.reference_usage],
+            "identity": identity.model_dump() if identity else None,
+            "generation": {
+                "checkpoint": job.checkpoint
+                or (
+                    self.settings.generation.reference_checkpoint
+                    if job.request.kind == "reference"
+                    else self.settings.generation.image_checkpoint
+                    if job.request.kind == "image"
+                    else self.settings.generation.checkpoint
+                ),
+                "lora": job.lora if job.lora is not None else "",
+                "lora_enabled": bool(job.lora) and job.request.lora_strength > 0,
+                "steps": job.request.steps,
+                "cfg": job.request.cfg,
+                "lora_strength": job.request.lora_strength,
+                "sampler": generation.sampler,
+                "scheduler": generation.scheduler,
+            },
+        }
+        return build_generation_details(meta)
 
     def _identity_usage(self, job: Job) -> IdentityUsage | None:
         """Describe the face identity engine applied to a reference job."""

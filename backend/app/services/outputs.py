@@ -12,6 +12,7 @@ from PIL import Image
 
 from app.config import PROJECT_ROOT, Settings
 from app.schemas.models import (
+    GenerationDetails,
     IdentityUsage,
     OutputItem,
     OutputsResponse,
@@ -153,6 +154,7 @@ def result_info(
     mode: str = "icon",
     candidates_generated: int = 1,
     candidate_index: int = 0,
+    details: GenerationDetails | None = None,
 ) -> ResultInfo:
     _safe_job_id(job_id)
     if postprocess not in {"quantize", "nearest", "posterize"}:
@@ -181,6 +183,7 @@ def result_info(
         candidate_index=max(0, int(candidate_index)),
         candidate_score=float(result.candidate_score),
         panel_suspected=bool(result.panel_suspected),
+        details=details,
     )
 
 
@@ -192,6 +195,7 @@ def image_result_info(
     candidates_generated: int = 1,
     candidate_index: int = 0,
     warnings: list[str] | None = None,
+    details: GenerationDetails | None = None,
 ) -> ResultInfo:
     """Result metadata for the image generator page (no pixel postprocess)."""
     return native_result_info(
@@ -203,6 +207,7 @@ def image_result_info(
         candidates_generated=candidates_generated,
         candidate_index=candidate_index,
         warnings=warnings,
+        details=details,
     )
 
 
@@ -212,6 +217,7 @@ def reference_result_info(
     image_size: int,
     references: list[ReferenceUsage] | None = None,
     identity: IdentityUsage | None = None,
+    details: GenerationDetails | None = None,
     mode: str = "icon",
     candidates_generated: int = 1,
     candidate_index: int = 0,
@@ -225,6 +231,7 @@ def reference_result_info(
         kind="reference",
         references=references,
         identity=identity,
+        details=details,
         mode=mode,
         candidates_generated=candidates_generated,
         candidate_index=candidate_index,
@@ -239,6 +246,7 @@ def native_result_info(
     kind: str = "image",
     references: list[ReferenceUsage] | None = None,
     identity: IdentityUsage | None = None,
+    details: GenerationDetails | None = None,
     mode: str = "icon",
     candidates_generated: int = 1,
     candidate_index: int = 0,
@@ -272,6 +280,7 @@ def native_result_info(
         panel_suspected=False,
         references=list(references or []),
         identity=identity,
+        details=details,
     )
 
 
@@ -350,9 +359,53 @@ def _list_pixel_outputs(settings: Settings, limit: int) -> OutputsResponse:
                 candidate_index=int(meta.get("selected_candidate") or 0),
                 candidate_score=float(meta.get("candidate_score") or 0.0),
                 panel_suspected=bool(meta.get("panel_suspected", False)),
+                details=build_generation_details(meta),
             )
         )
     return OutputsResponse(items=items, total=len(files))
+
+
+def _text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
+def build_generation_details(meta: dict[str, Any]) -> GenerationDetails:
+    """Build the "what did this generation use?" inspector data.
+
+    Works for pixel, image and reference jobs because every job writes the same
+    metadata shape (``request`` + ``generation`` + optional reference info).
+    """
+    request = meta.get("request") or {}
+    generation = meta.get("generation") or {}
+    steps = generation.get("steps")
+    cfg = generation.get("cfg")
+    return GenerationDetails(
+        prompt=_text(request.get("prompt") or meta.get("prompt_original")),
+        prompt_used=_text(meta.get("prompt_used") or request.get("prompt")),
+        negative_prompt=_text(meta.get("negative_used") or request.get("negative_prompt")),
+        prompt_translated=bool(meta.get("prompt_translated")),
+        checkpoint=_text(generation.get("checkpoint") or request.get("checkpoint")),
+        lora=_text(generation.get("lora") or request.get("lora")),
+        lora_enabled=bool(generation.get("lora_enabled")),
+        steps=int(steps if steps is not None else request.get("steps") or 0),
+        cfg=float(cfg if cfg is not None else request.get("cfg") or 0.0),
+        lora_strength=float(generation.get("lora_strength") or 0.0),
+        sampler=_text(generation.get("sampler")),
+        scheduler=_text(generation.get("scheduler")),
+        width=int(meta.get("width") or 0),
+        height=int(meta.get("height") or 0),
+        seed=meta.get("seed_used"),
+        mode=_text(request.get("mode") or meta.get("mode")),
+        postprocess=_text(meta.get("postprocess") or request.get("postprocess")),
+        transparent=bool(meta.get("transparent", False)),
+        palette_colors=int(meta.get("palette_used") or 0),
+        elapsed_seconds=float(meta.get("elapsed_seconds") or 0.0),
+        created_at=_text(meta.get("created_at") or meta.get("saved_at")),
+        references=_load_references(meta),
+        identity=_load_identity(meta),
+    )
 
 
 def _load_references(meta: dict[str, Any]) -> list[ReferenceUsage]:
@@ -437,6 +490,7 @@ def _list_native_outputs(settings: Settings, limit: int, kind: str) -> OutputsRe
                 panel_suspected=False,
                 references=_load_references(meta),
                 identity=_load_identity(meta),
+                details=build_generation_details(meta),
             )
         )
     return OutputsResponse(items=items, total=len(files))

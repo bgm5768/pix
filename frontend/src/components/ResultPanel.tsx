@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type {
   AssetMode,
   DisplayResult,
@@ -6,12 +7,20 @@ import type {
   ResizeFilter,
 } from "../types";
 import { assetUrl } from "../api/client";
-import { DownloadIcon, PaletteIcon, RefreshIcon, SparkIcon, TrashIcon } from "./Icons";
+import {
+  DownloadIcon,
+  InfoIcon,
+  PaletteIcon,
+  RefreshIcon,
+  SparkIcon,
+  TrashIcon,
+} from "./Icons";
 
 interface ResultPanelProps {
   kind: PageKind;
   display: DisplayResult | null;
   busy: boolean;
+  detailsOpen?: boolean;
   onRegenerate: () => void;
   onDelete: () => void;
 }
@@ -46,11 +55,26 @@ const EMPTY_PIXELS = [
   "11000011",
 ];
 
-export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: ResultPanelProps) {
+export function ResultPanel({
+  kind,
+  display,
+  busy,
+  detailsOpen = false,
+  onRegenerate,
+  onDelete,
+}: ResultPanelProps) {
+  const detailsRef = useRef<HTMLDetailsElement | null>(null);
+  const jobId = display?.jobId ?? null;
+  useEffect(() => {
+    if (detailsOpen && detailsRef.current) {
+      detailsRef.current.open = true;
+    }
+  }, [detailsOpen, jobId]);
   const isImage = kind === "image";
   const isReference = kind === "reference";
   const isNative = isImage || isReference;
   const result = display?.result ?? null;
+  const details = result?.details ?? null;
   const scale = result?.preview_scale ?? 1;
   const imageSrc = result?.image_url ?? result?.preview_url;
   const pixelSrc = result?.pixel_url ?? result?.preview_url;
@@ -276,6 +300,142 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
             <p className="result-prompt" title={display.prompt}>
               {display.prompt}
             </p>
+          )}
+
+          {details && (
+            <details className="result-details" ref={detailsRef}>
+              <summary>
+                <InfoIcon size={13} />
+                생성 정보 · 이 결과를 만든 프롬프트·모델·설정
+              </summary>
+              <div className="details-body">
+                <div className="details-block">
+                  <span className="details-label">
+                    PROMPT{details.prompt_translated ? " · 번역 사용" : ""}
+                  </span>
+                  <p className="details-prompt">
+                    {details.prompt_used || details.prompt || "—"}
+                  </p>
+                  {details.prompt_translated &&
+                    details.prompt &&
+                    details.prompt !== details.prompt_used && (
+                      <p className="details-sub">원문 · {details.prompt}</p>
+                    )}
+                  {details.negative_prompt && (
+                    <>
+                      <span className="details-label">NEGATIVE</span>
+                      <p className="details-prompt">{details.negative_prompt}</p>
+                    </>
+                  )}
+                </div>
+
+                <div className="details-grid">
+                  <div>
+                    <span>CHECKPOINT</span>
+                    <strong title={details.checkpoint}>
+                      {details.checkpoint || "기본 모델"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>LoRA</span>
+                    <strong title={details.lora}>
+                      {details.lora_enabled && details.lora
+                        ? details.lora
+                        : "사용 안 함"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>STEPS</span>
+                    <strong>{details.steps}</strong>
+                  </div>
+                  <div>
+                    <span>CFG</span>
+                    <strong>{details.cfg}</strong>
+                  </div>
+                  <div>
+                    <span>LORA STRENGTH</span>
+                    <strong>{details.lora_strength.toFixed(2)}</strong>
+                  </div>
+                  <div>
+                    <span>SAMPLER</span>
+                    <strong>
+                      {details.sampler || "—"}
+                      {details.scheduler ? ` · ${details.scheduler}` : ""}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>SIZE</span>
+                    <strong>
+                      {details.width}×{details.height}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>SEED</span>
+                    <strong>{details.seed ?? "—"}</strong>
+                  </div>
+                  <div>
+                    <span>MODE</span>
+                    <strong>
+                      {MODE_LABELS[details.mode as AssetMode] ?? details.mode ?? "—"}
+                    </strong>
+                  </div>
+                  {details.postprocess && (
+                    <div>
+                      <span>POST-PROCESS</span>
+                      <strong>{details.postprocess}</strong>
+                    </div>
+                  )}
+                  {details.palette_colors > 0 && (
+                    <div>
+                      <span>PALETTE</span>
+                      <strong>{details.palette_colors} colors</strong>
+                    </div>
+                  )}
+                  <div>
+                    <span>ELAPSED</span>
+                    <strong>{details.elapsed_seconds.toFixed(1)}s</strong>
+                  </div>
+                </div>
+
+                {details.references && details.references.length > 0 && (
+                  <div className="details-block">
+                    <span className="details-label">REFERENCES</span>
+                    <ul className="details-list">
+                      {details.references.map((reference) => (
+                        <li key={reference.asset_id}>
+                          <strong>{reference.name}</strong>
+                          <span>
+                            {reference.focus} · ×{reference.strength.toFixed(2)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {details.identity && details.identity.engine !== "none" && (
+                  <div className="details-block">
+                    <span className="details-label">FACE IDENTITY</span>
+                    <ul className="details-list">
+                      <li>
+                        <strong>
+                          {details.identity.engine === "instantid"
+                            ? "InstantID"
+                            : "PuLID"}
+                        </strong>
+                        <span>
+                          {details.identity.name || "참고 이미지"} · ×
+                          {details.identity.weight.toFixed(2)}
+                          {details.identity.engine === "instantid"
+                            ? ` · 구조 ×${(details.identity.control_weight ?? 0).toFixed(2)}`
+                            : ` · ${details.identity.method}`}
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </details>
           )}
 
           {!isNative && display.promptPlan && (

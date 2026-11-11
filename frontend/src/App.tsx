@@ -238,6 +238,7 @@ function displayFromOutput(item: OutputItem): DisplayResult {
       panel_suspected: item.panel_suspected ?? false,
       references: item.references ?? [],
       identity: item.identity ?? null,
+      details: item.details ?? null,
     },
   };
 }
@@ -327,6 +328,7 @@ export default function App() {
   );
   const [referenceUploading, setReferenceUploading] = useState(false);
   const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
+  const [detailsJobId, setDetailsJobId] = useState<string | null>(null);
 
   const activeNegative =
     page === "image"
@@ -1287,6 +1289,14 @@ export default function App() {
     [generating],
   );
 
+  const handleSelectOutputDetails = useCallback(
+    (item: OutputItem) => {
+      handleSelectOutput(item);
+      setDetailsJobId(item.job_id);
+    },
+    [handleSelectOutput],
+  );
+
   const deleteResult = useCallback(
     async (kind: PageKind, jobId: string, promptText?: string) => {
       if (generating[kind]) return;
@@ -1545,6 +1555,7 @@ export default function App() {
             kind={page}
             display={displays[page]}
             busy={generating[page]}
+            detailsOpen={detailsJobId === displays[page]?.jobId}
             onRegenerate={handleRegenerate}
             onDelete={() => void handleDeleteCurrent()}
           />
@@ -1554,6 +1565,7 @@ export default function App() {
             loading={outputsLoading}
             disabled={generating[page]}
             onSelect={handleSelectOutput}
+            onSelectDetails={handleSelectOutputDetails}
             onDelete={handleDeleteOutput}
           />
         </div>

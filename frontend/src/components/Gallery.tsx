@@ -1,7 +1,7 @@
 import type { OutputItem, PageKind } from "../types";
 import { assetUrl } from "../api/client";
 import { formatRelative } from "../utils";
-import { DownloadIcon, TrashIcon } from "./Icons";
+import { DownloadIcon, InfoIcon, TrashIcon } from "./Icons";
 
 interface GalleryProps {
   kind: PageKind;
@@ -9,10 +9,19 @@ interface GalleryProps {
   loading: boolean;
   disabled: boolean;
   onSelect: (item: OutputItem) => void;
+  onSelectDetails: (item: OutputItem) => void;
   onDelete: (item: OutputItem) => void;
 }
 
-export function Gallery({ kind, items, loading, disabled, onSelect, onDelete }: GalleryProps) {
+export function Gallery({
+  kind,
+  items,
+  loading,
+  disabled,
+  onSelect,
+  onSelectDetails,
+  onDelete,
+}: GalleryProps) {
   const isImage = kind === "image";
   const isReference = kind === "reference";
   const isNative = isImage || isReference;
@@ -87,6 +96,19 @@ export function Gallery({ kind, items, loading, disabled, onSelect, onDelete }: 
                   <p>{item.prompt || "프롬프트 기록 없음"}</p>
                 </button>
                 <div className="gallery-actions">
+                  <button
+                    type="button"
+                    className="gallery-action"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectDetails(item);
+                    }}
+                    disabled={disabled}
+                    title="이 결과를 만든 프롬프트·모델·설정 보기"
+                    aria-label="생성 정보 보기"
+                  >
+                    <InfoIcon size={13} />
+                  </button>
                   <a
                     className="gallery-action"
                     href={assetUrl(item.download_url)}
