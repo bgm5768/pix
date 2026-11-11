@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { StudioStatus } from "../types";
-import { assetUrl } from "../api/client";
+import { api, assetUrl } from "../api/client";
 import { AlertIcon, CheckIcon, InfoIcon, RefreshIcon, SparkIcon } from "./Icons";
 
 interface StudioPanelProps {
@@ -21,12 +21,30 @@ export function StudioPanel({
   onRefresh,
 }: StudioPanelProps) {
   const [frameLoaded, setFrameLoaded] = useState(false);
+  const [flowsBusy, setFlowsBusy] = useState(false);
+  const [flowsError, setFlowsError] = useState<string | null>(null);
   useEffect(() => {
     setFrameLoaded(false);
   }, [refreshKey]);
 
   const installed = status?.installed ?? false;
   const running = status?.running ?? false;
+  const flows = status?.flows ?? [];
+
+  const refreshFlows = async () => {
+    setFlowsBusy(true);
+    setFlowsError(null);
+    try {
+      await api.refreshStudioFlows();
+      onRefresh();
+    } catch (cause) {
+      setFlowsError(
+        cause instanceof Error ? cause.message : "모델 목록을 갱신하지 못했습니다.",
+      );
+    } finally {
+      setFlowsBusy(false);
+    }
+  };
 
   return (
     <section className="panel studio-panel">
@@ -110,6 +128,53 @@ export function StudioPanel({
               nk.py 가 있는 폴더를 <code>config/settings.yaml</code> 의
               <code> studio.kit_path</code> 에 지정해 주세요.
             </p>
+          </div>
+        </div>
+      )}
+
+      {installed && status?.policy_agreed === false && (
+        <div className="studio-warn">
+          <AlertIcon size={16} />
+          <span>
+            nk 작업실이 사용 정책 동의를 기다리고 있습니다(<code>.nk_agreed</code> 없음).
+            콘솔에서 <code>{"cd C:\\nk && python nk.py list"}</code> 를 한 번 실행하고{" "}
+            <code>agree</code> 를 입력하면 작업실 작업이 다시 동작합니다.
+          </span>
+        </div>
+      )}
+
+      {installed && (
+        <div className="studio-models">
+          <div className="studio-models-head">
+            <span className="field-label">그림 모델 (nk 워크플로)</span>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void refreshFlows()}
+              disabled={flowsBusy}
+            >
+              <RefreshIcon size={12} /> {flowsBusy ? "갱신 중..." : "모델 목록 갱신"}
+            </button>
+          </div>
+          <p className="setting-note">
+            설치된 SDXL 모델마다 nk 워크플로를 하나씩 만들어 둡니다. 작업실 안의
+            <strong> 「그림 워크플로」</strong> 드롭다운에서 모델을 고르면 그 모델로 그려집니다.
+          </p>
+          {flowsError && <p className="reference-guidance is-warning">{flowsError}</p>}
+          <div className="studio-model-list">
+            {flows.map((flow) => (
+              <span className="studio-model-chip" key={flow.name} title={flow.model}>
+                <strong>{flow.name}</strong>
+                <small>
+                  {flow.steps} steps · CFG {flow.cfg}
+                </small>
+              </span>
+            ))}
+            {flows.length === 0 && (
+              <span className="setting-note">
+                아직 워크플로가 없습니다. 「모델 목록 갱신」을 눌러 주세요.
+              </span>
+            )}
           </div>
         </div>
       )}

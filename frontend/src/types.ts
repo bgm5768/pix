@@ -478,6 +478,13 @@ export interface ComicPageInfo {
   pdf_url: string;
 }
 
+export interface StudioFlow {
+  name: string;
+  model: string;
+  steps: number;
+  cfg: number;
+}
+
 export interface StudioStatus {
   installed: boolean;
   kit_path: string;
@@ -487,6 +494,8 @@ export interface StudioStatus {
   python: string;
   allowed?: boolean;
   remote_blocked?: boolean;
+  policy_agreed?: boolean;
+  flows?: StudioFlow[];
 }
 
 export interface AppSettings {

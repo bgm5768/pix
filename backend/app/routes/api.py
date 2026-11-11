@@ -165,6 +165,8 @@ async def studio_status(request: Request) -> dict:
     status = studio.status()
     status["allowed"] = True
     status["remote_blocked"] = False
+    status["policy_agreed"] = studio.policy_agreed()
+    status["flows"] = studio.list_model_flows()
     return status
 
 
@@ -173,6 +175,19 @@ async def studio_start(request: Request) -> dict:
     studio = _studio(request)
     await studio.ensure_running()
     return studio.status()
+
+
+@router.get("/studio/flows")
+async def studio_flows(request: Request) -> dict:
+    studio = _studio(request)
+    return {"items": studio.list_model_flows()}
+
+
+@router.post("/studio/flows/refresh")
+async def studio_refresh_flows(request: Request) -> dict:
+    studio = _studio(request)
+    written = studio.refresh_model_flows()
+    return {"items": written, "flow_dir": str(studio.flow_dir)}
 
 
 @studio_router.api_route("/", methods=["GET", "POST", "HEAD"])

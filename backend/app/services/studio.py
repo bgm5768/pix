@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -53,6 +55,28 @@ class StudioService:
     lives inside the PixelForge UI.
     """
 
+    # nk flow slot titles (see nk_flow.py: find_slots / _titled_default).
+    FLOW_TITLES = {
+        "6": "NK prompt",
+        "7": "NK negative",
+        "3": "NK seed",
+        "5": "NK size",
+        "9": "NK output",
+        "20": "NK lora",
+    }
+    FLOW_PROMPT = "%quality%, %artist%, safe, %char%, %scene%"
+    FLOW_RE = re.compile(r"^[A-Za-z0-9_\-\uac00-\ud7a3.]{1,60}$")
+    NON_SDXL_TOKENS = (
+        "hunyuan",
+        "sam3",
+        "svd",
+        "flux",
+        "sd3",
+        "anima",
+        "acestep",
+        "ace_step",
+    )
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self._process: subprocess.Popen[bytes] | None = None
@@ -74,6 +98,18 @@ class StudioService:
                 return candidate
         default = Path(r"C:\nk")
         return default
+
+    @property
+    def flow_dir(self) -> Path:
+        return self.kit_path / "workflows"
+
+    def policy_agreed(self) -> bool:
+        """nk asks for the use-policy consent once; the marker file records it."""
+        marker = self.kit_path / ".nk_agreed"
+        try:
+            return marker.read_text(encoding="utf-8").split()[0] == "1"
+        except Exception:
+            return False
 
     @property
     def installed(self) -> bool:
@@ -200,6 +236,192 @@ class StudioService:
             with contextlib.suppress(Exception):
                 self._log_handle.close()
             self._log_handle = None
+
+    # ------------------------------------------------------- model workflows
+    def list_model_flows(self) -> list[dict[str, Any]]:
+        """The generated per-model drawing workflows (the studio model list)."""
+        if not self.flow_dir.is_dir():
+            return []
+        items: list[dict[str, Any]] = []
+        for path in sorted(self.flow_dir.glob("*.json")):
+            if path.stem.endswith("_final"):
+                continue
+            try:
+                graph = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            model = ""
+            for node in graph.values():
+                if not isinstance(node, dict):
+                    continue
+                if node.get("class_type") == "CheckpointLoaderSimple":
+                    model = str((node.get("inputs") or {}).get("ckpt_name") or "")
+                    break
+            if not model:
+                continue
+            steps = cfg = 0.0
+            for node in graph.values():
+                if not isinstance(node, dict):
+                    continue
+                if node.get("class_type") == "KSampler":
+                    inputs = node.get("inputs") or {}
+                    steps = int(inputs.get("steps") or 0)
+                    cfg = float(inputs.get("cfg") or 0.0)
+                    break
+            items.append(
+                {
+                    "name": path.stem,
+                    "model": model,
+                    "steps": steps,
+                    "cfg": cfg,
+                }
+            )
+        return items
+
+    def refresh_model_flows(self) -> list[dict[str, Any]]:
+        """Write one nk drawing workflow per installed SDXL checkpoint.
+
+        nk can draw a solo cut with a user workflow and the studio already
+        lists those in its "그림 워크플로" dropdown, so this turns that
+        dropdown into a model picker without touching nk code.
+        """
+        if not self.installed:
+            raise StudioError(
+                f"nk 만화 제작기를 찾지 못했습니다: {self.kit_path}",
+            )
+        self.flow_dir.mkdir(parents=True, exist_ok=True)
+        models = self._sdxl_checkpoints()
+        values = self._recommended_values()
+        lora = self._first_lora()
+        written: list[dict[str, Any]] = []
+        for model in models:
+            steps, cfg = values.get(model, (30, 5.5))
+            name = self._flow_name(model)
+            if not self.FLOW_RE.match(name):
+                continue
+            graph = self._build_flow_graph(model, steps, cfg, lora, name)
+            (self.flow_dir / f"{name}.json").write_text(
+                json.dumps(graph, ensure_ascii=False, indent=1), encoding="utf-8"
+            )
+            written.append({"name": name, "model": model, "steps": steps, "cfg": cfg})
+        return written
+
+    def _sdxl_checkpoints(self) -> list[str]:
+        try:
+            with httpx.Client(timeout=30) as client:
+                info = client.get(
+                    f"{self.settings.comfyui.normalized_url}/object_info/CheckpointLoaderSimple"
+                ).json()
+            names = info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
+        except Exception:
+            return []
+        return [
+            name
+            for name in names
+            if not any(token in name.lower() for token in self.NON_SDXL_TOKENS)
+        ]
+
+    def _recommended_values(self) -> dict[str, tuple[int, float]]:
+        """Per model steps/cfg from PixelForge's own model notes."""
+        from app.services.model_catalog import model_files
+
+        values: dict[str, tuple[int, float]] = {}
+        try:
+            models = model_files(
+                self.settings, "checkpoint", set(self._sdxl_checkpoints())
+            )
+        except Exception:
+            return values
+        for model in models:
+            if model.recommended_steps and model.recommended_cfg:
+                values[model.name] = (
+                    int(model.recommended_steps),
+                    float(model.recommended_cfg),
+                )
+        return values
+
+    def _first_lora(self) -> str:
+        loras = (
+            Path(self.settings.comfyui.models_dir).expanduser() / "loras"
+            if self.settings.comfyui.models_dir
+            else Path()
+        )
+        if loras.is_dir():
+            for path in sorted(loras.glob("*.safetensors")):
+                return path.name
+        return ""
+
+    @staticmethod
+    def _flow_name(model: str) -> str:
+        base = re.sub(r"[^A-Za-z0-9_\-\uac00-\ud7a3.]", "_", Path(model).stem)
+        return base[:60]
+
+    def _build_flow_graph(
+        self, model: str, steps: int, cfg: float, lora: str, name: str
+    ) -> dict[str, Any]:
+        clip = ["20", 1] if lora else ["4", 1]
+        model_link = ["20", 0] if lora else ["4", 0]
+        graph: dict[str, Any] = {
+            "4": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {"ckpt_name": model},
+                "_meta": {"title": "CheckpointLoaderSimple"},
+            },
+            "6": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": self.FLOW_PROMPT, "clip": clip},
+                "_meta": {"title": self.FLOW_TITLES["6"]},
+            },
+            "7": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": "%negative%", "clip": clip},
+                "_meta": {"title": self.FLOW_TITLES["7"]},
+            },
+            "5": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {"width": 832, "height": 1216, "batch_size": 1},
+                "_meta": {"title": self.FLOW_TITLES["5"]},
+            },
+            "3": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "seed": 1,
+                    "steps": int(steps),
+                    "cfg": float(cfg),
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "denoise": 1.0,
+                    "model": model_link,
+                    "positive": ["6", 0],
+                    "negative": ["7", 0],
+                    "latent_image": ["5", 0],
+                },
+                "_meta": {"title": self.FLOW_TITLES["3"]},
+            },
+            "8": {
+                "class_type": "VAEDecode",
+                "inputs": {"samples": ["3", 0], "vae": ["4", 2]},
+                "_meta": {"title": "VAEDecode"},
+            },
+            "9": {
+                "class_type": "SaveImage",
+                "inputs": {"filename_prefix": f"nk/{name}", "images": ["8", 0]},
+                "_meta": {"title": self.FLOW_TITLES["9"]},
+            },
+        }
+        if lora:
+            graph["20"] = {
+                "class_type": "LoraLoader",
+                "inputs": {
+                    "model": ["4", 0],
+                    "clip": ["4", 1],
+                    "lora_name": lora,
+                    "strength_model": 0.0,
+                    "strength_clip": 0.0,
+                },
+                "_meta": {"title": self.FLOW_TITLES["20"]},
+            }
+        return graph
 
     # ------------------------------------------------------------------ proxy
     @staticmethod

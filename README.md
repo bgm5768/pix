@@ -567,6 +567,24 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
   nk 쪽 `presets.yaml` 의 `pixelforge_*` 프리셋으로 LUSTIFY!/NoobAI/Pony 등을 바로 고를 수 있다.
 - nk 의 안전장치(전연령 전용)는 그대로 적용된다. PixelForge가 그 장치를 건드리지 않는다.
 
+### 4.5.1 작업실 그림 모델 선택
+
+nk 는 "혼자 컷"을 **워크플로 파일**(`workflows/<이름>.json`)로 그릴 수 있고, 작업실 UI에
+이미 **「그림 워크플로」** 드롭다운이 있다. PixelForge 는 설치된 SDXL 체크포인트마다
+워크플로를 하나씩 만들어 두므로, 그 드롭다운이 곧 **모델 선택 목록**이 된다.
+
+- 픽셀포지 작업실 탭의 **「그림 모델 (nk 워크플로)」** 영역에 현재 모델 목록이 보인다.
+  「모델 목록 갱신」을 누르면 새로 설치한 모델까지 다시 만든다.
+- 실제 모델 고르는 곳은 nk 작업실의 **「그림 워크플로」** 드롭다운(새 만화 만들 때, 또는
+  에피소드별 메뉴)이다. 고른 워크플로가 그 에피소드의 컷 그리기에 쓰인다.
+- 워크플로는 nk 코드가 아니라 **설정 파일**로 추가한 것이므로 nk 를 수정하지 않는다.
+
+> **`.nk_agreed` 를 지우면?** nk 는 매 실행마다 사용 정책 동의를 다시 묻는다. 작업실은
+> 콘솔 없이 백그라운드로 실행되므로 동의 대기에서 멈춘다(작업 실패).
+> 콘솔에서 `cd C:\nk && python nk.py list` 를 한 번 실행하고 `agree` 를 입력하면
+> `.nk_agreed` 가 다시 만들어지고 작업실 작업이 정상 동작한다.
+> (동의 표식을 지워도 정책이 사라지는 것은 아니다. 그건 아래 11절 참고.)
+
 설정(`config/settings.yaml`):
 
 ```yaml
@@ -767,8 +785,10 @@ outputs/
 | GET | `/api/references/samples` | 제공된 참고 샘플 목록 |
 | POST | `/api/references/upload` | 참고 이미지 업로드 (multipart `file`) → 분석 결과 포함 |
 | GET | `/api/references/capabilities?checkpoint=...` | IP-Adapter/얼굴 고정 설치·호환 상태와 안내 문구 |
-| GET | `/api/studio/status` | nk 만화 작업실 설치·실행 상태 |
+| GET | `/api/studio/status` | nk 만화 작업실 설치·실행 상태 (동의 표식·모델 워크플로 포함) |
 | POST | `/api/studio/start` | nk 만화 작업실 서버 기동 |
+| GET | `/api/studio/flows` | 설치된 모델별 nk 그림 워크플로 목록 |
+| POST | `/api/studio/flows/refresh` | 모델 워크플로 다시 만들기 (새 모델 반영) |
 | GET/POST | `/studio/...` | nk 작업실 화면·API 프록시 (작업실이 그대로 동작) |
 | POST | `/api/comic/page` | 컷 + 말풍선으로 만화 페이지(PNG/PDF) 조립 |
 | GET | `/api/comic/pages` | 조립한 페이지 목록 |
@@ -1188,7 +1208,7 @@ pix/
 │        ├─ model_downloads.py     # 모델 다운로드/이어받기/취소
 │        ├─ outputs.py             # 픽셀/이미지/레퍼런스 저장, 출력 목록, 다운로드/삭제
 │        ├─ references.py          # 참고 이미지 업로드·분석, 샘플 목록, IP-Adapter 상태 확인
-│        ├─ studio.py              # nk 만화 작업실(nk ep web) 기동 + /studio 프록시
+│        ├─ studio.py              # nk 만화 작업실(nk ep web) 기동 + /studio 프록시 + 모델 워크플로
 │        ├─ comic.py               # 만화 페이지 조립(컷 배치 + 말풍선 + PDF)
 │        └─ errors.py              # 사용자 친화적 오류 타입
 ├─ config/

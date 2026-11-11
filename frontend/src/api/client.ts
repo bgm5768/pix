@@ -15,6 +15,7 @@ import type {
   ReferenceAsset,
   ReferenceCapabilities,
   ReferenceSamplesResponse,
+  StudioFlow,
   StudioStatus,
   SystemStatusResponse,
   TranslateResponse,
@@ -164,6 +165,12 @@ export const api = {
   getStudioStatus: () => request<StudioStatus>("/api/studio/status"),
   startStudio: () =>
     request<StudioStatus>("/api/studio/start", {
+      method: "POST",
+    }),
+  getStudioFlows: () =>
+    request<{ items: StudioFlow[] }>("/api/studio/flows"),
+  refreshStudioFlows: () =>
+    request<{ items: StudioFlow[]; flow_dir: string }>("/api/studio/flows/refresh", {
       method: "POST",
     }),
   getComicPages: () => request<{ items: ComicPageInfo[] }>("/api/comic/pages"),
