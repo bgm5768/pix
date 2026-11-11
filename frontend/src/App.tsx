@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
 import { BackendOverride } from "./components/BackendOverride";
+import { JobList } from "./components/JobList";
 import { PaletteIcon, SparkIcon } from "./components/Icons";
 import { PromptPanel } from "./components/PromptPanel";
+import { ResourceBar } from "./components/ResourceBar";
 import { ResultPanel } from "./components/ResultPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { StatusPanel } from "./components/StatusPanel";
@@ -15,6 +17,7 @@ import type {
   GenerateRequest,
   HealthResponse,
   ImageSize,
+  JobStatus,
   JobView,
   ModelDownloadItem,
   OutputItem,
@@ -23,6 +26,7 @@ import type {
   OutputSize,
   PostProcessMode,
   ResizeFilter,
+  SystemStatusResponse,
   TranslationPreview,
 } from "./types";
 
@@ -71,6 +75,18 @@ const OUTPUT_SIZES: OutputSize[] = [16, 32, 64, 96, 128];
 const POSTPROCESS_MODES: PostProcessMode[] = ["quantize", "nearest", "posterize"];
 const ASSET_MODES: AssetMode[] = ["icon", "character", "object", "tile"];
 const RESIZE_FILTERS: ResizeFilter[] = ["nearest", "box", "lanczos"];
+
+const JOB_HISTORY_LIMIT = 14;
+const ACTIVE_JOB_STATUSES: JobStatus[] = [
+  "queued",
+  "preparing",
+  "generating",
+  "postprocessing",
+];
+
+function isActiveJob(status: JobStatus): boolean {
+  return ACTIVE_JOB_STATUSES.includes(status);
+}
 
 function readStoredSettings(): AppSettings | null {
   try {
@@ -181,6 +197,10 @@ export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [system, setSystem] = useState<SystemStatusResponse | null>(null);
+  const [jobHistory, setJobHistory] = useState<JobView[]>([]);
+  const [jobHistoryLoading, setJobHistoryLoading] = useState(true);
+  const restoredJobsRef = useRef(false);
   const [downloads, setDownloads] = useState<ModelDownloadItem[]>([]);
   const [downloadsError, setDownloadsError] = useState<string | null>(null);
   const [outputsByPage, setOutputsByPage] = useState<Record<PageKind, OutputItem[]>>({
@@ -217,6 +237,109 @@ export default function App() {
 
   const activeNegative = page === "image" ? imageNegative : negative;
   const activePrompt = page === "image" ? imagePrompt : prompt;
+
+  /**
+   * Merge a fresh /api/jobs response. Any job that is still queued/running is
+   * adopted by its page, so a page refresh (or a second tab) reconnects to the
+   * live progress instead of starting from an empty status panel.
+   */
+  const applyJobList = useCallback((items: JobView[]) => {
+    setJobHistory(items);
+
+    const activeByKind: Partial<Record<PageKind, JobView>> = {};
+    for (const job of items) {
+      if (isActiveJob(job.status) && !activeByKind[job.request.kind]) {
+        activeByKind[job.request.kind] = job;
+      }
+    }
+
+    // On the first list load, jump to the page that owns the live job so a
+    // refresh during generation lands directly on its progress panel.
+    if (!restoredJobsRef.current) {
+      restoredJobsRef.current = true;
+      const running =
+        items.find((job) =>
+          ["preparing", "generating", "postprocessing"].includes(job.status),
+        ) ?? items.find((job) => job.status === "queued");
+      if (running) {
+        setPage((current) => (activeByKind[current] ? current : running.request.kind));
+      }
+    }
+
+    if (!activeByKind.pixel && !activeByKind.image) return;
+
+    setJobIds((current) => {
+      const next = { ...current };
+      (["pixel", "image"] as const).forEach((kind) => {
+        const active = activeByKind[kind];
+        if (!next[kind] && active) next[kind] = active.job_id;
+      });
+      return next.pixel === current.pixel && next.image === current.image ? current : next;
+    });
+    setJobs((current) => {
+      const next = { ...current };
+      (["pixel", "image"] as const).forEach((kind) => {
+        if (!next[kind] && activeByKind[kind]) next[kind] = activeByKind[kind] ?? null;
+      });
+      return next.pixel === current.pixel && next.image === current.image ? current : next;
+    });
+    setGenerating((current) => {
+      const next = { ...current };
+      (["pixel", "image"] as const).forEach((kind) => {
+        if (activeByKind[kind]) next[kind] = true;
+      });
+      return next.pixel === current.pixel && next.image === current.image ? current : next;
+    });
+  }, []);
+
+  const refreshJobHistory = useCallback(async () => {
+    try {
+      const response = await api.getJobs(JOB_HISTORY_LIMIT);
+      applyJobList(response.items);
+    } catch {
+      // The next poll retries; keep the last known list visible.
+    } finally {
+      setJobHistoryLoading(false);
+    }
+  }, [applyJobList]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await api.getJobs(JOB_HISTORY_LIMIT);
+        if (!cancelled) applyJobList(response.items);
+      } catch {
+        // The next poll retries; keep the last known list visible.
+      } finally {
+        if (!cancelled) setJobHistoryLoading(false);
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 3500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [applyJobList]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await api.getSystem();
+        if (!cancelled) setSystem(response);
+      } catch {
+        // Keep the last sample; the next tick will update it.
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(KEY_PROMPT, prompt);
@@ -460,6 +583,7 @@ export default function App() {
           }
           setErrors((current) => ({ ...current, [kind]: null }));
           void refreshOutputs(kind);
+          void refreshJobHistory();
         } else if (next.status === "error") {
           setGenerating((current) => ({ ...current, [kind]: false }));
           setErrors((current) => ({
@@ -467,9 +591,11 @@ export default function App() {
             [kind]: next.error ?? "생성 중 오류가 발생했습니다.",
           }));
           void refreshOutputs(kind);
+          void refreshJobHistory();
         } else if (next.status === "cancelled") {
           setGenerating((current) => ({ ...current, [kind]: false }));
           setNotices((current) => ({ ...current, [kind]: "생성이 취소되었습니다." }));
+          void refreshJobHistory();
         } else {
           timers.push(window.setTimeout(() => void tick(kind, id), 650));
         }
@@ -492,7 +618,7 @@ export default function App() {
       cancelled = true;
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [jobIds.pixel, jobIds.image, refreshOutputs]);
+  }, [jobIds.pixel, jobIds.image, refreshOutputs, refreshJobHistory]);
 
   useEffect(() => {
     if (!notices.pixel) return;
@@ -630,6 +756,63 @@ export default function App() {
     }
   }, [jobIds, page]);
 
+  const handleCancelJob = useCallback(
+    async (jobId: string) => {
+      const target = jobHistory.find((job) => job.job_id === jobId);
+      const kind = target?.request.kind ?? page;
+      try {
+        const response = await api.cancelJob(jobId);
+        setJobHistory((current) =>
+          current.map((job) => {
+            if (job.job_id !== jobId) return job;
+            return response.status === "cancelled"
+              ? { ...job, status: "cancelled", stage_message: "취소됨" }
+              : { ...job, stage_message: "취소 요청 중..." };
+          }),
+        );
+        setJobs((current) => {
+          const tracked = current[kind];
+          if (!tracked || tracked.job_id !== jobId) return current;
+          return {
+            ...current,
+            [kind]:
+              response.status === "cancelled"
+                ? { ...tracked, status: "cancelled", stage_message: "취소됨" }
+                : { ...tracked, stage_message: "취소 요청 중..." },
+          };
+        });
+        setNotices((current) => ({ ...current, [kind]: response.message }));
+        void refreshJobHistory();
+      } catch (cause) {
+        setErrors((current) => ({
+          ...current,
+          [kind]: cause instanceof Error ? cause.message : "취소 요청에 실패했습니다.",
+        }));
+      }
+    },
+    [jobHistory, page, refreshJobHistory],
+  );
+
+  const handleSelectJob = useCallback((job: JobView) => {
+    if (job.status !== "completed" || !job.result) return;
+    const kind = job.request.kind;
+    setPage(kind);
+    setDisplays((current) => ({
+      ...current,
+      [kind]: {
+        jobId: job.job_id,
+        result: job.result,
+        prompt: job.request.prompt,
+        seed: job.seed_used,
+        createdAt: job.completed_at ?? undefined,
+        live: true,
+        promptPlan: job.prompt_plan,
+      },
+    }));
+    setErrors((current) => ({ ...current, [kind]: null }));
+    setNotices((current) => ({ ...current, [kind]: null }));
+  }, []);
+
   const handleRetry = useCallback(() => {
     void submit();
   }, [submit]);
@@ -734,6 +917,7 @@ export default function App() {
           ...current,
           [kind]: current[kind].filter((item) => item.job_id !== jobId),
         }));
+        setJobHistory((current) => current.filter((job) => job.job_id !== jobId));
         setDisplays((current) =>
           current[kind]?.jobId === jobId ? { ...current, [kind]: null } : current,
         );
@@ -748,6 +932,7 @@ export default function App() {
           ...current,
           [kind]: response.message || "결과를 삭제했습니다.",
         }));
+        void refreshJobHistory();
       } catch (cause) {
         setErrors((current) => ({
           ...current,
@@ -755,7 +940,7 @@ export default function App() {
         }));
       }
     },
-    [generating],
+    [generating, refreshJobHistory],
   );
 
   const handleDeleteOutput = useCallback(
@@ -790,6 +975,13 @@ export default function App() {
         job={jobs[page]}
         checkpoint={headerCheckpoint}
         lora={headerLora}
+      />
+
+      <ResourceBar
+        gpu={system?.gpu ?? health?.gpu ?? null}
+        memory={system?.memory ?? health?.memory ?? null}
+        queue={system?.queue ?? health?.queue ?? null}
+        connected={Boolean(health?.comfyui.connected)}
       />
 
       <nav className="mode-tabs" aria-label="생성 모드">
@@ -867,6 +1059,14 @@ export default function App() {
             notice={notices[page]}
             onRetry={handleRetry}
             onCancel={() => void handleCancel()}
+          />
+          <JobList
+            jobs={jobHistory}
+            loading={jobHistoryLoading}
+            activeJobId={jobIds[page]}
+            onCancel={(jobId) => void handleCancelJob(jobId)}
+            onSelect={handleSelectJob}
+            onRefresh={() => void refreshJobHistory()}
           />
           <SettingsPanel
             kind={page}

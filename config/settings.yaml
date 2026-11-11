@@ -116,6 +116,7 @@ storage:
   images_dir: 'outputs/images'
   image_previews_dir: 'outputs/image_previews'
   metadata_dir: 'outputs/metadata'
+  jobs_dir: 'outputs/jobs'
   cutouts_dir: 'outputs/cutouts'
   crops_dir: 'outputs/crops'
   candidates_dir: 'outputs/candidates'

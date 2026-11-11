@@ -22,6 +22,7 @@ from app.services.comfy_launcher import ComfyLauncher
 from app.services.errors import PixelForgeError
 from app.services.job_manager import JobManager
 from app.services.model_downloads import ModelDownloadManager
+from app.services.system_monitor import SystemMonitor
 from app.services.translator import Translator
 
 logger = logging.getLogger("pixelforge")
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
     translator = Translator(settings.translation, settings.translation_model_dir)
     jobs = JobManager(settings, comfy, launcher, translator)
     downloads = ModelDownloadManager(settings, comfy)
+    monitor = SystemMonitor()
 
     app.state.settings = settings
     app.state.comfy = comfy
@@ -68,6 +70,7 @@ async def lifespan(app: FastAPI):
     app.state.translator = translator
     app.state.jobs = jobs
     app.state.downloads = downloads
+    app.state.monitor = monitor
 
     await jobs.start()
     logger.info("PixelForge Local backend starting (ComfyUI: %s)", settings.comfyui.normalized_url)

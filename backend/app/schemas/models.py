@@ -158,6 +158,12 @@ class CancelResponse(BaseModel):
     message: str
 
 
+class JobListResponse(BaseModel):
+    items: list[JobView] = Field(default_factory=list)
+    active: int = 0
+    pending: int = 0
+
+
 class ModelAvailability(BaseModel):
     name: str
     available: bool
@@ -225,7 +231,20 @@ class GpuStatus(BaseModel):
     name: str
     vram_total: int = 0
     vram_free: int = 0
+    vram_used: int = 0
+    utilization: float | None = None
+    temperature_c: float | None = None
+    power_w: float | None = None
+    power_limit_w: float | None = None
+    source: Literal["nvidia-smi", "comfyui"] = "comfyui"
     state: str = "idle"
+
+
+class MemoryStatus(BaseModel):
+    total: int = 0
+    used: int = 0
+    available: int = 0
+    percent: float = 0.0
 
 
 class QueueStatus(BaseModel):
@@ -233,11 +252,19 @@ class QueueStatus(BaseModel):
     pending: int = 0
 
 
+class SystemStatusResponse(BaseModel):
+    gpu: GpuStatus | None = None
+    memory: MemoryStatus | None = None
+    queue: QueueStatus
+    timestamp: datetime
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     app_version: str
     comfyui: ComfyStatus
     gpu: GpuStatus | None = None
+    memory: MemoryStatus | None = None
     models: ModelStatus
     queue: QueueStatus
     timestamp: datetime

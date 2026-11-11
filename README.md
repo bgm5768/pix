@@ -10,6 +10,9 @@
 - **한국어 → 영어 번역**: 이미지 페이지의 한국어 프롬프트를 오프라인 ONNX 모델
   (`opus-mt-ko-en`)로 자동 번역해 SDXL에 전달 (기본 켜짐, 영어 입력은 그대로 사용)
 - **다운로드/삭제**: 결과 패널과 갤러리 카드에서 PNG 다운로드 및 결과 삭제
+- **실시간 자원 표시**: 상단 스트립에서 GPU 사용률, VRAM, 시스템 RAM, 대기열 수를 2.5초마다 갱신
+- **작업 목록/이어보기**: 최근 작업을 상태·진행률과 함께 표시하고, 페이지를 새로고침해도
+  실행 중인 작업을 자동으로 복원해 진행 상황을 계속 보여줌 (작업 중 취소 가능)
 - **입력**: 텍스트 프롬프트 (한국어/영어 모두 가능)
 - **모드**: 아이콘 / 캐릭터 / 게임 오브젝트 / 타일·배경
 - **출력**: 16 / 32 / 64 / 96 / 128px 실제 크기 PNG
@@ -472,12 +475,14 @@ outputs/
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/api/generate` | 생성 작업 제출 (`kind`로 픽셀/이미지 선택) |
+| GET | `/api/jobs?limit=20&kind=image` | 최근 작업 목록 (실행 중 작업 우선, 재시작 후에도 유지) |
 | GET | `/api/jobs/{job_id}` | 작업 상태/진행률/결과 조회 |
 | POST | `/api/jobs/{job_id}/cancel` | 작업 취소 |
 | GET | `/api/outputs?limit=30&kind=pixel` | 최근 결과 목록 (`kind=pixel` 기본, `kind=image`) |
 | DELETE | `/api/outputs/{job_id}` | 결과 파일과 메타데이터 삭제 (진행 중 작업은 409) |
 | POST | `/api/translate` | 한국어 프롬프트를 영어로 번역 (오프라인 ONNX, CPU) |
-| GET | `/api/health` | 백엔드/ComfyUI/GPU/모델/큐 상태 |
+| GET | `/api/system` | GPU 사용률/VRAM/온도/전력, RAM, 대기열 상태 (2.5초 폴링용) |
+| GET | `/api/health` | 백엔드/ComfyUI/GPU/RAM/모델/큐 상태 |
 | GET | `/api/models/catalog` | 다운로드 가능한 모델과 설치/진행 상태 |
 | POST | `/api/models/downloads/{id}` | 모델 다운로드 시작 |
 | POST | `/api/models/downloads/{id}/cancel` | 진행 중인 다운로드 취소 |
@@ -578,6 +583,11 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 - `result.panel_suspected`: 카드/패널/사각 배경 의심 여부
 - `result.quality`: 자동 검증 항목별 통과 여부와 측정값 (이미지 모드는 빈 배열)
 - `result.warnings`: 후보 선택, 중복 오브젝트 감지, 분리 실패, 검증 실패 안내
+
+`GET /api/jobs`는 같은 `JobView`를 최근 순으로 돌려주며, 실행 중/대기 중 작업이
+먼저 정렬됩니다. 작업 스냅샷은 `outputs/jobs/<job_id>.json`에 저장되므로 백엔드를
+재시작해도 최근 목록이 남습니다. 재시작 시점에 아직 끝나지 않은 작업은
+`cancelled` + `error_code: "SERVER_RESTART"`로 정리됩니다.
 
 `GET /api/health`의 `models`에는 현재 기본 모델과 ComfyUI에서 사용 가능한 전체 목록이 포함됩니다.
 
@@ -773,7 +783,8 @@ pix/
 │     └─ services/
 │        ├─ comfy_client.py        # ComfyUI HTTP/WS 클라이언트
 │        ├─ comfy_launcher.py      # ComfyUI 자동 기동
-│        ├─ job_manager.py         # 단일 워커 큐, 픽셀/이미지 분기, 진행률, 후처리 오케스트레이션
+│        ├─ job_manager.py         # 단일 워커 큐, 작업 스냅샷 복원, 진행률, 후처리 오케스트레이션
+│        ├─ system_monitor.py      # nvidia-smi/psutil 기반 GPU·VRAM·RAM 샘플러
 │        ├─ prompt_engine.py       # 한국어 구조화 프롬프트 + 선택적 Ollama
 │        ├─ postprocess.py         # 피사체 추출/크롭/스케일/양자화/검증
 │        ├─ translator.py          # 한국어→영어 ONNX 번역, 청크/캐시/폴백
@@ -794,7 +805,7 @@ pix/
 │  ├─ vite.config.ts
 │  └─ src/
 │     ├─ App.tsx                    # 페이지 탭, 페이지별 프롬프트/설정/결과 상태
-│     ├─ components/                # Header/Prompt/Settings/Status/Result/Gallery (kind variant)
+│     ├─ components/                # Header/Prompt/Settings/Status/Result/Gallery + ResourceBar/JobList
 │     ├─ api/client.ts
 │     ├─ types.ts
 │     └─ styles/global.css
@@ -811,7 +822,8 @@ pix/
 │  ├─ previews/                    # 픽셀: 확대 미리보기
 │  ├─ images/                      # 이미지: SDXL 원본 PNG
 │  ├─ image_previews/              # 이미지: 갤러리용 축소 미리보기
-│  └─ metadata/                    # 작업 메타데이터 JSON
+│  ├─ metadata/                    # 작업 메타데이터 JSON
+│  └─ jobs/                        # 작업 스냅샷 JSON (재시작 후 목록 복원용)
 └─ logs/
    ├─ backend.log
    └─ comfyui-server.log

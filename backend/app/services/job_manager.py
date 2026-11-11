@@ -21,6 +21,7 @@ from app.config import Settings
 from app.schemas.models import (
     CancelResponse,
     GenerateRequest,
+    JobListResponse,
     JobStatus,
     JobView,
     ResultInfo,
@@ -52,6 +53,8 @@ from app.services.prompt_engine import build_prompt_plan_async
 from app.services.translator import Translator
 
 logger = logging.getLogger("pixelforge.jobs")
+
+_TERMINAL_STATUSES = {JobStatus.COMPLETED, JobStatus.ERROR, JobStatus.CANCELLED}
 
 
 @dataclass
@@ -113,6 +116,7 @@ class JobManager:
         self._worker_task: asyncio.Task | None = None
 
     async def start(self) -> None:
+        self._load_persisted_jobs()
         if self._worker_task is None or self._worker_task.done():
             self._worker_task = asyncio.create_task(self._worker_loop(), name="pixelforge-job-worker")
 
@@ -146,6 +150,7 @@ class JobManager:
             self._pending.append(job_id)
             self._condition.notify()
             position = self._queue_position(job_id)
+            self._persist(job)
             logger.info("Job %s queued (position=%s, seed=%s)", job_id, position, seed)
             return self._view(job)
 
@@ -171,6 +176,7 @@ class JobManager:
             job.status = JobStatus.CANCELLED
             job.stage_message = "취소됨"
             job.completed_at = datetime.now(timezone.utc)
+            self._persist(job)
             logger.info("Job %s cancelled while queued", job_id)
             return CancelResponse(job_id=job_id, status=job.status, message="대기 중인 작업을 취소했습니다.")
 
@@ -197,6 +203,113 @@ class JobManager:
             return None
         job = self.jobs.get(self._active_id)
         return self._view(job) if job else None
+
+    def list_recent(self, limit: int = 20, kind: str | None = None) -> JobListResponse:
+        jobs = [
+            job
+            for job in self.jobs.values()
+            if kind is None or job.request.kind == kind
+        ]
+        jobs.sort(
+            key=lambda job: (
+                job.status not in _TERMINAL_STATUSES,
+                job.created_at,
+            ),
+            reverse=True,
+        )
+        active, pending = self.queue_counts()
+        return JobListResponse(
+            items=[self._view(job) for job in jobs[: max(1, limit)]],
+            active=active,
+            pending=pending,
+        )
+
+    def forget(self, job_id: str) -> None:
+        """Drop a finished job from history after its output is deleted."""
+        job = self.jobs.get(job_id)
+        if job is not None and job.status not in _TERMINAL_STATUSES:
+            return
+        self.jobs.pop(job_id, None)
+        try:
+            (self.settings.jobs_dir / f"{job_id}.json").unlink(missing_ok=True)
+        except OSError:
+            logger.debug("Could not remove job history for %s", job_id, exc_info=True)
+
+    def _persist(self, job: Job) -> None:
+        try:
+            directory = self.settings.jobs_dir
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / f"{job.id}.json"
+            temporary = path.with_suffix(".json.tmp")
+            payload = self._view(job).model_dump(mode="json")
+            temporary.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            temporary.replace(path)
+        except Exception:
+            logger.warning("Could not persist job %s", job.id, exc_info=True)
+
+    def _load_persisted_jobs(self) -> None:
+        directory = self.settings.jobs_dir
+        if not directory.exists():
+            return
+        limit = max(1, int(self.settings.jobs.history_limit))
+        files = sorted(
+            directory.glob("*.json"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for path in files[:limit]:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                view = JobView.model_validate(data)
+            except Exception:
+                logger.debug("Skipping unreadable job history %s", path, exc_info=True)
+                continue
+            if view.job_id in self.jobs:
+                continue
+            job = Job(
+                id=view.job_id,
+                request=view.request,
+                status=view.status,
+                stage_message=view.stage_message,
+                progress=view.progress,
+                created_at=view.created_at,
+                started_at=view.started_at,
+                completed_at=view.completed_at,
+                seed_used=view.seed_used,
+                base_seed=view.base_seed,
+                prompt_original=view.prompt_original,
+                prompt_used=view.prompt_used,
+                prompt_translated=view.prompt_translated,
+                negative_used=view.negative_used,
+                prompt_plan=view.prompt_plan.model_dump() if view.prompt_plan else None,
+                comfy_prompt_id=view.comfy_prompt_id,
+                step=view.step,
+                total_steps=view.total_steps,
+                result=view.result,
+                error=view.error,
+                error_code=view.error_code,
+                postprocess_mode=view.request.postprocess,
+            )
+            if job.status not in _TERMINAL_STATUSES:
+                job.status = JobStatus.CANCELLED
+                job.stage_message = "서버 재시작으로 중단됨"
+                job.completed_at = datetime.now(timezone.utc)
+                job.error_code = "SERVER_RESTART"
+                job.progress = min(job.progress, 99)
+                self.jobs[job.id] = job
+                self._persist(job)
+            else:
+                self.jobs[job.id] = job
+        for path in files[limit:]:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                logger.debug("Could not prune job history %s", path, exc_info=True)
+        if self.jobs:
+            logger.info("Restored %s job history entries", len(self.jobs))
 
     def _queue_position(self, job_id: str) -> int:
         try:
@@ -247,6 +360,7 @@ class JobManager:
                 job.status = JobStatus.CANCELLED
                 job.stage_message = "서버 종료로 취소됨"
                 job.completed_at = datetime.now(timezone.utc)
+                self._persist(job)
                 raise
             except Exception:
                 logger.exception("Unhandled error while running job %s", job_id)
@@ -256,6 +370,7 @@ class JobManager:
                     job.error = "예상하지 못한 서버 오류가 발생했습니다. 로그를 확인해 주세요."
                     job.error_code = "INTERNAL_ERROR"
                     job.completed_at = datetime.now(timezone.utc)
+                    self._persist(job)
             finally:
                 self._active_id = None
 
@@ -271,6 +386,7 @@ class JobManager:
             job.status = JobStatus.PREPARING
             job.progress = 3
             job.stage_message = "프롬프트를 처리하는 중..."
+            self._persist(job)
             await self._set_prompt(job)
 
             job.stage_message = "ComfyUI 연결을 확인하는 중..."
@@ -298,6 +414,7 @@ class JobManager:
             job.status = JobStatus.GENERATING
             job.progress = 6
             job.stage_message = "ComfyUI에 생성을 요청하는 중..."
+            self._persist(job)
             client_id = uuid.uuid4().hex
             ws_task = asyncio.create_task(self._listen_progress(job, client_id), name=f"comfy-ws-{job.id}")
 
@@ -479,6 +596,7 @@ class JobManager:
                 job.progress = 100
                 job.status = JobStatus.COMPLETED
                 job.stage_message = "완료"
+                self._persist(job)
                 logger.info(
                     "Image job %s completed in %.2fs (%sx%s)",
                     job.id,
@@ -545,6 +663,7 @@ class JobManager:
             job.progress = 100
             job.status = JobStatus.COMPLETED
             job.stage_message = "완료"
+            self._persist(job)
             logger.info(
                 "Job %s completed in %.2fs (%sx%s, %s colors)",
                 job.id,
@@ -566,6 +685,7 @@ class JobManager:
                 job.error = exc.message
                 job.error_code = exc.code
                 job.completed_at = datetime.now(timezone.utc)
+                self._persist(job)
                 if exc.detail:
                     logger.error("Job %s failed [%s]: %s | %s", job.id, exc.code, exc.message, exc.detail)
                 else:
@@ -580,6 +700,7 @@ class JobManager:
                 job.error = f"예상하지 못한 오류가 발생했습니다: {exc}"
                 job.error_code = "INTERNAL_ERROR"
                 job.completed_at = datetime.now(timezone.utc)
+                self._persist(job)
         finally:
             if ws_task:
                 ws_task.cancel()
@@ -879,6 +1000,7 @@ class JobManager:
         job.stage_message = "취소됨"
         job.completed_at = datetime.now(timezone.utc)
         job.progress = min(job.progress, 99)
+        self._persist(job)
         logger.info("Job %s cancelled", job.id)
 
     def _save_job_metadata(

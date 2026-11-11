@@ -17,6 +17,7 @@ from app.schemas.models import (
     GenerateKind,
     GpuStatus,
     HealthResponse,
+    JobListResponse,
     JobView,
     ModelAvailability,
     ModelCatalogResponse,
@@ -24,6 +25,7 @@ from app.schemas.models import (
     ModelStatus,
     OutputsResponse,
     QueueStatus,
+    SystemStatusResponse,
     TranslateRequest,
     TranslateResponse,
 )
@@ -33,6 +35,7 @@ from app.services.job_manager import JobManager
 from app.services.model_catalog import model_files
 from app.services.model_downloads import ModelDownloadManager
 from app.services.outputs import delete_output, find_download_path, list_outputs
+from app.services.system_monitor import SystemMonitor
 
 router = APIRouter(prefix="/api", tags=["pixelforge"])
 
@@ -53,6 +56,10 @@ def _downloads(request: Request) -> ModelDownloadManager:
     return request.app.state.downloads
 
 
+def _monitor(request: Request) -> SystemMonitor:
+    return request.app.state.monitor
+
+
 @router.post("/translate", response_model=TranslateResponse)
 async def translate_prompt(payload: TranslateRequest, request: Request) -> TranslateResponse:
     translator = request.app.state.translator
@@ -71,6 +78,15 @@ async def translate_prompt(payload: TranslateRequest, request: Request) -> Trans
 async def generate(payload: GenerateRequest, request: Request) -> GenerateResponse:
     job = await _jobs(request).submit(payload)
     return GenerateResponse(job_id=job.job_id, status=job.status, queue_position=job.queue_position)
+
+
+@router.get("/jobs", response_model=JobListResponse)
+async def list_jobs(
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+    kind: GenerateKind | None = Query(default=None),
+) -> JobListResponse:
+    return _jobs(request).list_recent(limit=limit, kind=kind)
 
 
 @router.get("/jobs/{job_id}", response_model=JobView)
@@ -104,6 +120,7 @@ async def delete_output_result(job_id: str, request: Request) -> DeleteOutputRes
         raise JobNotFoundError(str(exc)) from exc
     if not deleted:
         raise JobNotFoundError("삭제할 결과를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.")
+    _jobs(request).forget(job_id)
     return DeleteOutputResponse(
         job_id=job_id,
         deleted=deleted,
@@ -149,6 +166,21 @@ async def download_output(
     return FileResponse(path, media_type="image/png", filename=filename)
 
 
+@router.get("/system", response_model=SystemStatusResponse)
+async def system_status(request: Request) -> SystemStatusResponse:
+    gpu, memory = await _monitor(request).snapshot()
+    jobs = _jobs(request)
+    if gpu is not None:
+        gpu.state = "generating" if jobs.active_job() else "idle"
+    active, pending = jobs.queue_counts()
+    return SystemStatusResponse(
+        gpu=gpu,
+        memory=memory,
+        queue=QueueStatus(active=active, pending=pending),
+        timestamp=datetime.now(timezone.utc),
+    )
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health(request: Request) -> HealthResponse:
     settings = _settings(request)
@@ -157,25 +189,30 @@ async def health(request: Request) -> HealthResponse:
     connected = False
     version: str | None = None
     comfy_error: str | None = None
-    gpu: GpuStatus | None = None
+    gpu, memory = await _monitor(request).snapshot()
     try:
         stats = await comfy.health()
         connected = True
         system = stats.get("system") or {}
         version = str(system.get("comfyui_version") or "") or None
         devices = stats.get("devices") or []
-        if devices and isinstance(devices[0], dict):
+        if gpu is None and devices and isinstance(devices[0], dict):
             device = devices[0]
+            total = int(device.get("vram_total") or 0)
+            free = int(device.get("vram_free") or 0)
             gpu = GpuStatus(
                 name=str(device.get("name") or "GPU"),
-                vram_total=int(device.get("vram_total") or 0),
-                vram_free=int(device.get("vram_free") or 0),
-                state="generating" if jobs.active_job() else "idle",
+                vram_total=total,
+                vram_free=free,
+                vram_used=max(0, total - free),
+                source="comfyui",
             )
     except PixelForgeError as exc:
         comfy_error = exc.message
     except Exception as exc:
         comfy_error = f"ComfyUI 연결 확인 실패: {exc}"
+    if gpu is not None:
+        gpu.state = "generating" if jobs.active_job() else "idle"
 
     checkpoints: set[str] = set()
     loras: set[str] = set()
@@ -206,6 +243,7 @@ async def health(request: Request) -> HealthResponse:
             error=comfy_error,
         ),
         gpu=gpu,
+        memory=memory,
         models=models,
         queue=QueueStatus(active=active, pending=pending),
         timestamp=datetime.now(timezone.utc),

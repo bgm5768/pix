@@ -129,6 +129,7 @@ class StorageConfig(BaseModel):
     images_dir: str = "outputs/images"
     image_previews_dir: str = "outputs/image_previews"
     metadata_dir: str = "outputs/metadata"
+    jobs_dir: str = "outputs/jobs"
     cutouts_dir: str = "outputs/cutouts"
     crops_dir: str = "outputs/crops"
     candidates_dir: str = "outputs/candidates"
@@ -138,6 +139,8 @@ class StorageConfig(BaseModel):
 class JobsConfig(BaseModel):
     max_pending: int = 2
     poll_interval_seconds: float = 0.7
+    # Job snapshots are kept so the UI can list recent work after a restart.
+    history_limit: int = 50
 
 
 class Settings(BaseModel):
@@ -183,6 +186,10 @@ class Settings(BaseModel):
         return self.resolve(self.storage.metadata_dir)
 
     @property
+    def jobs_dir(self) -> Path:
+        return self.resolve(self.storage.jobs_dir)
+
+    @property
     def cutouts_dir(self) -> Path:
         return self.resolve(self.storage.cutouts_dir)
 
@@ -214,6 +221,7 @@ class Settings(BaseModel):
             self.images_dir,
             self.image_previews_dir,
             self.metadata_dir,
+            self.jobs_dir,
             self.cutouts_dir,
             self.crops_dir,
             self.candidates_dir,

@@ -194,6 +194,31 @@ export interface ModelCatalogResponse {
   models_dir: string;
 }
 
+export interface GpuStatus {
+  name: string;
+  vram_total: number;
+  vram_free: number;
+  vram_used: number;
+  utilization: number | null;
+  temperature_c: number | null;
+  power_w: number | null;
+  power_limit_w: number | null;
+  source: "nvidia-smi" | "comfyui";
+  state: string;
+}
+
+export interface MemoryStatus {
+  total: number;
+  used: number;
+  available: number;
+  percent: number;
+}
+
+export interface QueueStatus {
+  active: number;
+  pending: number;
+}
+
 export interface HealthResponse {
   status: string;
   app_version: string;
@@ -203,23 +228,29 @@ export interface HealthResponse {
     version: string | null;
     error: string | null;
   };
-  gpu: {
-    name: string;
-    vram_total: number;
-    vram_free: number;
-    state: string;
-  } | null;
+  gpu: GpuStatus | null;
+  memory: MemoryStatus | null;
   models: {
     checkpoint: ModelAvailability;
     lora: ModelAvailability;
     checkpoints: ModelFile[];
     loras: ModelFile[];
   };
-  queue: {
-    active: number;
-    pending: number;
-  };
+  queue: QueueStatus;
   timestamp: string;
+}
+
+export interface SystemStatusResponse {
+  gpu: GpuStatus | null;
+  memory: MemoryStatus | null;
+  queue: QueueStatus;
+  timestamp: string;
+}
+
+export interface JobListResponse {
+  items: JobView[];
+  active: number;
+  pending: number;
 }
 
 export interface OutputItem {

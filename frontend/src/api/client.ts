@@ -5,11 +5,13 @@ import type {
   GenerateRequest,
   GenerateResponse,
   HealthResponse,
+  JobListResponse,
   JobView,
   ModelCatalogResponse,
   ModelDownloadItem,
   OutputsResponse,
   PageKind,
+  SystemStatusResponse,
   TranslateResponse,
 } from "../types";
 
@@ -111,6 +113,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getConfig: () => request<AppConfig>("/api/config"),
   getHealth: () => request<HealthResponse>("/api/health"),
+  getSystem: () => request<SystemStatusResponse>("/api/system"),
+  getJobs: (limit = 20, kind?: PageKind) =>
+    request<JobListResponse>(
+      `/api/jobs?limit=${limit}${kind ? `&kind=${encodeURIComponent(kind)}` : ""}`,
+    ),
   generate: (payload: GenerateRequest) =>
     request<GenerateResponse>("/api/generate", {
       method: "POST",
