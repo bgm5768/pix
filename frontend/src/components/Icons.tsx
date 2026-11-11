@@ -134,6 +134,14 @@ export function ClockIcon(props: IconProps) {
   );
 }
 
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function PaletteIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

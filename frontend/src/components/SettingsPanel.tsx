@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type {
   AppSettings,
   AssetMode,
@@ -10,7 +11,15 @@ import type {
   PostProcessMode,
   ResizeFilter,
 } from "../types";
-import { DiceIcon, DownloadIcon, PaletteIcon, RefreshIcon, SparkIcon, StopIcon } from "./Icons";
+import {
+  ChevronDownIcon,
+  DiceIcon,
+  DownloadIcon,
+  PaletteIcon,
+  RefreshIcon,
+  SparkIcon,
+  StopIcon,
+} from "./Icons";
 
 interface SettingsPanelProps {
   kind: PageKind;
@@ -144,6 +153,8 @@ export function SettingsPanel({
   onRandomSeed,
 }: SettingsPanelProps) {
   const isImage = kind === "image";
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [expandedDownload, setExpandedDownload] = useState<string | null>(null);
   const paletteDisabled = settings.postprocess === "nearest";
   const allCheckpoints = models?.checkpoints ?? [];
   const allLoras = models?.loras ?? [];
@@ -214,6 +225,8 @@ export function SettingsPanel({
       ? "OFFLINE"
       : "...";
   const downloadingCount = downloads.filter((item) => item.status === "downloading").length;
+  const installedCount = downloads.filter((item) => item.status === "installed").length;
+  const readyCount = downloads.length - installedCount;
   return (
     <section className="panel settings-panel">
       <div className="panel-head">
@@ -348,115 +361,168 @@ export function SettingsPanel({
         <div className="model-downloads">
           <div className="model-download-head">
             <span className="field-label">모델 받기</span>
-            <span className="model-download-counter">
-              {downloadingCount > 0 ? `${downloadingCount}개 받는 중` : "SDXL 호환"}
-            </span>
+            <button
+              type="button"
+              className={`catalog-toggle ${catalogOpen ? "is-open" : ""}`}
+              onClick={() => {
+                setCatalogOpen((open) => !open);
+                if (catalogOpen) setExpandedDownload(null);
+              }}
+              aria-expanded={catalogOpen}
+            >
+              {catalogOpen ? "목록 닫기" : `모델 목록 ${downloads.length}`}
+              <ChevronDownIcon size={12} />
+            </button>
           </div>
+          <p className="model-download-summary">
+            설치 {installedCount}개 · 받기 가능 {readyCount}개
+            {downloadingCount > 0 ? ` · ${downloadingCount}개 받는 중` : ""}
+          </p>
 
           {downloadsError && <p className="setting-note model-download-error">{downloadsError}</p>}
 
-          <div className="model-download-list">
-            {downloads.map((item) => {
-              const busy = item.status === "downloading";
-              return (
-                <div className={`model-download-item is-${item.status}`} key={item.id}>
-                  <div className="model-download-row">
-                    <span className={`model-kind is-${item.kind}`}>
-                      {item.kind === "checkpoint" ? "CKPT" : "LORA"}
-                    </span>
-                    <span className="model-download-name" title={item.description || item.filename}>
-                      {item.label}
-                    </span>
-                    <span className="model-download-size">{formatBytes(item.size_bytes)}</span>
-                    {busy ? (
-                      <button
-                        type="button"
-                        className="model-download-btn is-busy"
-                        onClick={() => onCancelDownload(item.id)}
-                        title="다운로드 취소"
-                      >
-                        <StopIcon size={12} />
-                        {Math.round(item.progress)}%
-                      </button>
-                    ) : item.status === "installed" ? (
-                      <span className="model-download-state ok">설치됨</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="model-download-btn"
-                        onClick={() => onDownloadModel(item.id)}
-                        title={item.description}
-                      >
-                        <DownloadIcon size={12} />
-                        {item.status === "error"
-                          ? "재시도"
-                          : item.status === "cancelled" || item.downloaded_bytes > 0
-                            ? "이어받기"
-                            : "받기"}
-                      </button>
-                    )}
-                  </div>
-                  {busy && (
-                    <div className="model-progress" aria-hidden="true">
-                      <span style={{ width: `${Math.max(1, item.progress)}%` }} />
-                    </div>
-                  )}
-                  <div className="model-download-meta">
-                    {busy
-                      ? `${formatBytes(item.downloaded_bytes)} / ${formatBytes(item.size_bytes)} · ${formatBytes(item.speed_bps)}/s`
-                      : item.status === "error"
-                        ? item.error ?? "다운로드 실패"
-                        : item.status === "cancelled"
-                          ? "취소됨 · 이어받기 가능"
-                          : item.status === "installed"
-                            ? item.filename
-                            : item.downloaded_bytes > 0
-                              ? `${formatBytes(item.downloaded_bytes)} 받음 · 이어받기 가능`
-                              : "받기 전"}
-                  </div>
-                  {(item.description || item.features.length > 0) && (
-                    <div className="model-download-info">
-                      {item.description && (
-                        <p className="model-download-desc">{item.description}</p>
-                      )}
-                      <div className="model-tags">
-                        {item.nsfw && <span className="model-tag is-nsfw">NSFW</span>}
-                        {item.base_model && <span className="model-tag">{item.base_model}</span>}
-                        {item.vram_hint && <span className="model-tag">{item.vram_hint}</span>}
-                        {item.trigger && (
-                          <span className="model-tag is-trigger">트리거 · {item.trigger}</span>
-                        )}
-                        {item.prompt_tip && (
-                          <span className="model-tag is-tip">
-                            권장 프리픽스 · {item.prompt_tip}
+          {catalogOpen && (
+            <>
+              <div className="model-download-list">
+                {downloads.map((item) => {
+                  const busy = item.status === "downloading";
+                  const expanded = expandedDownload === item.id;
+                  return (
+                    <div
+                      className={`model-download-item is-${item.status} ${
+                        expanded ? "is-expanded" : ""
+                      }`}
+                      key={item.id}
+                    >
+                      <div className="model-download-row">
+                        <button
+                          type="button"
+                          className="model-download-main"
+                          onClick={() => setExpandedDownload(expanded ? null : item.id)}
+                          aria-expanded={expanded}
+                          title={item.description || item.filename}
+                        >
+                          <span className={`model-kind is-${item.kind}`}>
+                            {item.kind === "checkpoint" ? "CKPT" : "LORA"}
                           </span>
-                        )}
-                        {item.recommended_steps !== null && item.recommended_cfg !== null && (
-                          <span className="model-tag">
-                            권장 {item.recommended_steps} steps · CFG{" "}
-                            {item.recommended_cfg.toFixed(1)}
+                          <span className="model-download-name">{item.label}</span>
+                          <span className="model-download-size">
+                            {formatBytes(item.size_bytes)}
                           </span>
+                          <ChevronDownIcon size={12} className="model-download-chevron" />
+                        </button>
+                        {busy ? (
+                          <button
+                            type="button"
+                            className="model-download-btn is-busy"
+                            onClick={() => onCancelDownload(item.id)}
+                            title="다운로드 취소"
+                          >
+                            <StopIcon size={12} />
+                            {Math.round(item.progress)}%
+                          </button>
+                        ) : item.status === "installed" ? (
+                          <span className="model-download-state ok">설치됨</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="model-download-btn"
+                            onClick={() => onDownloadModel(item.id)}
+                            title={item.description}
+                          >
+                            <DownloadIcon size={12} />
+                            {item.status === "error"
+                              ? "재시도"
+                              : item.status === "cancelled" || item.downloaded_bytes > 0
+                                ? "이어받기"
+                                : "받기"}
+                          </button>
                         )}
                       </div>
-                      {item.features.length > 0 && (
-                        <div className="model-features">
-                          {item.features.map((feature) => (
-                            <span key={feature}>{feature}</span>
-                          ))}
+                      {busy && (
+                        <div className="model-progress" aria-hidden="true">
+                          <span style={{ width: `${Math.max(1, item.progress)}%` }} />
+                        </div>
+                      )}
+                      {busy && (
+                        <div className="model-download-meta">
+                          {formatBytes(item.downloaded_bytes)} / {formatBytes(item.size_bytes)} ·{" "}
+                          {formatBytes(item.speed_bps)}/s
+                        </div>
+                      )}
+                      {expanded && (
+                        <div className="model-download-info">
+                          <div className="model-download-filename" title={item.filename}>
+                            {item.filename}
+                          </div>
+                          {!busy && (
+                            <div className="model-download-meta">
+                              {item.status === "error"
+                                ? item.error ?? "다운로드 실패"
+                                : item.status === "cancelled"
+                                  ? "취소됨 · 이어받기 가능"
+                                  : item.status === "installed"
+                                    ? "설치 완료"
+                                    : item.downloaded_bytes > 0
+                                      ? `${formatBytes(item.downloaded_bytes)} 받음 · 이어받기 가능`
+                                      : "받기 전"}
+                            </div>
+                          )}
+                          {item.description && (
+                            <p className="model-download-desc">{item.description}</p>
+                          )}
+                          <div className="model-tags">
+                            {item.nsfw && <span className="model-tag is-nsfw">NSFW</span>}
+                            {item.base_model && (
+                              <span className="model-tag">{item.base_model}</span>
+                            )}
+                            {item.vram_hint && (
+                              <span className="model-tag">{item.vram_hint}</span>
+                            )}
+                            {item.trigger && (
+                              <span className="model-tag is-trigger">
+                                트리거 · {item.trigger}
+                              </span>
+                            )}
+                            {item.prompt_tip && (
+                              <span className="model-tag is-tip">
+                                권장 프리픽스 · {item.prompt_tip}
+                              </span>
+                            )}
+                            {item.recommended_steps !== null &&
+                              item.recommended_cfg !== null && (
+                                <span className="model-tag">
+                                  권장 {item.recommended_steps} steps · CFG{" "}
+                                  {item.recommended_cfg.toFixed(1)}
+                                </span>
+                              )}
+                            {item.recommended_strength !== null && (
+                              <span className="model-tag">
+                                권장 ×{item.recommended_strength.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          {item.features.length > 0 && (
+                            <div className="model-features">
+                              {item.features.map((feature) => (
+                                <span key={feature}>{feature}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {!downloads.length && (
-            <p className="setting-note">다운로드 목록을 불러오는 중...</p>
+                  );
+                })}
+              </div>
+              {!downloads.length && (
+                <p className="setting-note">다운로드 목록을 불러오는 중...</p>
+              )}
+              <p className="setting-note model-note">
+                받은 모델은 ComfyUI 모델 폴더에 저장되고, 완료 후 위 목록에 자동으로 추가됩니다.
+              </p>
+            </>
           )}
-          <p className="setting-note model-note">
-            받은 모델은 ComfyUI 모델 폴더에 저장되고, 완료 후 위 목록에 자동으로 추가됩니다.
-          </p>
         </div>
       </div>
 
