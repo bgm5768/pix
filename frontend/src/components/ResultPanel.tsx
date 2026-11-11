@@ -137,6 +137,29 @@ export function ResultPanel({ kind, display, busy, onRegenerate, onDelete }: Res
             )}
           </div>
 
+          {isReference && result.identity && result.identity.engine !== "none" && (
+            <div className="identity-used">
+              <div className="identity-used-head">
+                <strong>얼굴 동일성 고정</strong>
+                <span>
+                  {result.identity.engine === "instantid" ? "INSTANTID" : "PULID"} · ×
+                  {result.identity.weight.toFixed(2)}
+                </span>
+              </div>
+              {result.identity.url && (
+                <div className="identity-used-source">
+                  <img src={assetUrl(result.identity.url)} alt={result.identity.name} />
+                  <span>
+                    {result.identity.name || "참고 이미지"}
+                    {result.identity.method && result.identity.engine === "pulid"
+                      ? ` · ${result.identity.method}`
+                      : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {isReference && result.references && result.references.length > 0 && (
             <div className="reference-used">
               <div className="reference-used-head">

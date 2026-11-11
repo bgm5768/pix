@@ -158,6 +158,43 @@ def main() -> int:
         job3 = wait_for_job(client, zero["job_id"])
         ok &= check("강도 0 생성", job3["status"] == "completed", job3.get("error") or "")
 
+        # Face identity engines (InstantID / PuLID)
+        ok &= check(
+            "얼굴 고정 엔진 감지",
+            "instantid" in capabilities.get("identity_engines", [])
+            and "pulid" in capabilities.get("identity_engines", []),
+            str(capabilities.get("identity_engines")),
+        )
+        for engine in ("instantid", "pulid"):
+            identity_job = client.post(
+                f"{API}/api/generate",
+                json=build_payload(
+                    seed=4321,
+                    prompt="a woman with short hair smiling in a sunlit cafe, portrait",
+                    steps=20,
+                    cfg=5.0,
+                    reference_images=[
+                        {"asset_id": "sample_portrait", "strength": 0.5, "focus": "face"}
+                    ],
+                    identity_engine=engine,
+                    identity_image="sample_portrait",
+                    identity_weight=0.85,
+                ),
+            ).json()
+            result = wait_for_job(client, identity_job["job_id"])
+            ok &= check(
+                f"{engine} 생성",
+                result["status"] == "completed",
+                result.get("error") or "",
+            )
+            if result["status"] == "completed":
+                identity = (result.get("result") or {}).get("identity") or {}
+                ok &= check(
+                    f"{engine} 결과에 얼굴 고정 기록",
+                    identity.get("engine") == engine,
+                    str(identity),
+                )
+
         outputs = client.get(f"{API}/api/outputs", params={"kind": "reference"}).json()
         ok &= check("레퍼런스 갤러리", len(outputs["items"]) >= 3, f"{len(outputs['items'])}개")
 

@@ -21,6 +21,7 @@ from app.config import Settings
 from app.schemas.models import (
     CancelResponse,
     GenerateRequest,
+    IdentityUsage,
     JobListResponse,
     JobStatus,
     JobView,
@@ -54,6 +55,7 @@ from app.services.outputs import (
 from app.services.postprocess import PostProcessResult, postprocess_image
 from app.services.prompt_engine import build_prompt_plan_async
 from app.services.references import (
+    get_identity_capabilities,
     get_reference_capabilities,
     resolve_reference_assets,
     usage_from_asset,
@@ -105,6 +107,12 @@ class Job:
     reference_files: list[str] = field(default_factory=list)
     reference_usage: list[ReferenceUsage] = field(default_factory=list)
     reference_face_available: bool = False
+    # Face identity (InstantID / PuLID): resolved model files and the uploaded
+    # identity image name inside ComfyUI's input folder.
+    identity_image_file: str = ""
+    identity_model_file: str = ""
+    identity_controlnet_file: str = ""
+    identity_pulid_file: str = ""
 
 
 class JobManager:
@@ -605,6 +613,7 @@ class JobManager:
                         job.id,
                         job.request.image_size,
                         references=job.reference_usage,
+                        identity=self._identity_usage(job),
                         mode=job.request.mode,
                         candidates_generated=len(candidates),
                         candidate_index=0,
@@ -843,6 +852,43 @@ class JobManager:
                     + (guidance or "IP-Adapter Plus 설치 상태를 확인해 주세요."),
                     detail=capabilities.install_hint or None,
                 )
+            await self._check_identity_models(job, capabilities)
+
+    async def _check_identity_models(
+        self, job: Job, capabilities: Any
+    ) -> None:
+        """Validate the InstantID/PuLID stack before the job is queued."""
+        engine = job.request.identity_engine
+        if engine == "none":
+            return
+        identity = await get_identity_capabilities(self.settings, self.comfy)
+        label = "InstantID" if engine == "instantid" else "PuLID"
+        ready = identity.get("instantid_available" if engine == "instantid" else "pulid_available")
+        if not ready:
+            guidance = identity.get("identity_guidance") or (
+                f"{label} 설치 상태를 확인해 주세요."
+            )
+            raise ReferenceCompatibilityError(
+                f"얼굴 고정({label})을 사용할 수 없습니다. {guidance}",
+                detail=capabilities.install_hint or None,
+            )
+        if engine == "instantid":
+            job.identity_model_file = identity.get("instantid_file", "")
+            job.identity_controlnet_file = identity.get("controlnet_file", "")
+        else:
+            job.identity_pulid_file = identity.get("pulid_file", "")
+        if not job.identity_model_file and engine == "instantid":
+            raise ReferenceCompatibilityError(
+                "InstantID 모델 파일을 찾지 못했습니다. models/instantid 폴더를 확인해 주세요."
+            )
+        if not job.identity_controlnet_file and engine == "instantid":
+            raise ReferenceCompatibilityError(
+                "InstantID ControlNet을 찾지 못했습니다. models/controlnet 폴더를 확인해 주세요."
+            )
+        if not job.identity_pulid_file and engine == "pulid":
+            raise ReferenceCompatibilityError(
+                "PuLID 모델 파일을 찾지 못했습니다. models/pulid 폴더를 확인해 주세요."
+            )
 
     def _resolve_models(self, job: Job) -> None:
         if not job.checkpoint:
@@ -936,6 +982,94 @@ class JobManager:
 
         return workflow
 
+    def _apply_identity_nodes(
+        self,
+        job: Job,
+        workflow: dict[str, Any],
+        current_model: list[Any],
+    ) -> None:
+        """Add an InstantID or PuLID face-identity stage to the workflow.
+
+        InstantID patches the UNet attention with the InsightFace embedding and
+        drives a face ControlNet, so it replaces the positive/negative
+        conditioning as well. PuLID only patches the model.
+        """
+        engine = job.request.identity_engine
+        if engine == "none" or not job.identity_image_file:
+            return
+        identity_image = job.identity_image_file
+        weight = round(float(job.request.identity_weight), 3)
+
+        if engine == "instantid":
+            workflow["50"] = {
+                "class_type": "InstantIDModelLoader",
+                "inputs": {"instantid_file": job.identity_model_file},
+            }
+            workflow["51"] = {
+                "class_type": "InstantIDFaceAnalysis",
+                "inputs": {"provider": "CPU"},
+            }
+            workflow["52"] = {
+                "class_type": "ControlNetLoader",
+                "inputs": {"control_net_name": job.identity_controlnet_file},
+            }
+            workflow["53"] = {
+                "class_type": "LoadImage",
+                "inputs": {"image": identity_image},
+            }
+            workflow["54"] = {
+                "class_type": "ApplyInstantID",
+                "inputs": {
+                    "instantid": ["50", 0],
+                    "insightface": ["51", 0],
+                    "control_net": ["52", 0],
+                    "image": ["53", 0],
+                    "model": current_model,
+                    "positive": ["3", 0],
+                    "negative": ["4", 0],
+                    "weight": weight,
+                    "start_at": 0.0,
+                    "end_at": 1.0,
+                },
+            }
+            workflow["6"]["inputs"]["model"] = ["54", 0]
+            workflow["6"]["inputs"]["positive"] = ["54", 1]
+            workflow["6"]["inputs"]["negative"] = ["54", 2]
+            return
+
+        if engine == "pulid":
+            workflow["60"] = {
+                "class_type": "PulidModelLoader",
+                "inputs": {"pulid_file": job.identity_pulid_file},
+            }
+            workflow["61"] = {
+                "class_type": "PulidInsightFaceLoader",
+                "inputs": {"provider": "CPU"},
+            }
+            workflow["62"] = {
+                "class_type": "PulidEvaClipLoader",
+                "inputs": {},
+            }
+            workflow["63"] = {
+                "class_type": "LoadImage",
+                "inputs": {"image": identity_image},
+            }
+            workflow["64"] = {
+                "class_type": "ApplyPulid",
+                "inputs": {
+                    "model": current_model,
+                    "pulid": ["60", 0],
+                    "eva_clip": ["62", 0],
+                    "face_analysis": ["61", 0],
+                    "image": ["63", 0],
+                    "method": job.request.identity_method,
+                    "weight": weight,
+                    "start_at": 0.0,
+                    "end_at": 1.0,
+                },
+            }
+            workflow["6"]["inputs"]["model"] = ["64", 0]
+
     @staticmethod
     def _reference_weight_type(focus: str) -> str:
         if focus == "style":
@@ -1007,6 +1141,7 @@ class JobManager:
             }
             current_model = [apply_id, 0]
         workflow["6"]["inputs"]["model"] = current_model
+        self._apply_identity_nodes(job, workflow, current_model)
 
     async def _wait_for_completion(self, job: Job, prompt_id: str) -> dict[str, Any]:
         deadline = time.monotonic() + self.settings.comfyui.job_timeout_seconds
@@ -1032,6 +1167,12 @@ class JobManager:
                     message, code = ComfyClient.extract_execution_error(entry)
                     if code == "VRAM_OOM":
                         raise VramError(message)
+                    if "no face detected" in message.lower():
+                        raise ReferenceCompatibilityError(
+                            "얼굴 고정용 참고 이미지에서 얼굴을 찾지 못했습니다. "
+                            "얼굴이 정면으로 잘 보이는 사진을 사용하고 강도를 낮춰 보세요.",
+                            detail=message,
+                        )
                     raise ComfyExecutionError(message, code=code)
                 outputs = entry.get("outputs") or {}
                 if outputs and (status.get("completed") is not False):
@@ -1252,6 +1393,7 @@ class JobManager:
             usage_from_asset(item.asset, item.input) for item in resolved
         ]
         job.reference_files = []
+        uploaded_by_asset: dict[str, str] = {}
         for index, item in enumerate(resolved):
             try:
                 content = await asyncio.to_thread(item.path.read_bytes)
@@ -1263,6 +1405,7 @@ class JobManager:
             filename = f"pixelforge_ref_{job.id}_{index}_{item.asset.id}.png"
             uploaded = await self.comfy.upload_image(filename, content)
             job.reference_files.append(uploaded)
+            uploaded_by_asset[item.asset.id] = uploaded
         if not job.reference_face_available and any(
             usage.focus == "face" for usage in job.reference_usage
         ):
@@ -1270,6 +1413,33 @@ class JobManager:
                 "IP-Adapter Plus Face 모델을 찾지 못해 얼굴 참고를 일반 Plus 모델로 적용합니다. "
                 "얼굴 고정이 중요하면 ip-adapter-plus-face_sdxl_vit-h.safetensors를 설치해 주세요."
             )
+        identity_asset = job.request.identity_image
+        if job.request.identity_engine != "none" and identity_asset:
+            # The identity image is always one of the reference images, so the
+            # upload above already produced the ComfyUI input name.
+            job.identity_image_file = uploaded_by_asset.get(identity_asset, "")
+
+    def _identity_usage(self, job: Job) -> IdentityUsage | None:
+        """Describe the face identity engine applied to a reference job."""
+        engine = job.request.identity_engine
+        if engine == "none":
+            return None
+        source = next(
+            (
+                usage
+                for usage in job.reference_usage
+                if usage.asset_id == job.request.identity_image
+            ),
+            None,
+        )
+        return IdentityUsage(
+            engine=engine,
+            image=job.request.identity_image,
+            name=source.name if source else "",
+            url=source.url if source else "",
+            weight=round(float(job.request.identity_weight), 3),
+            method=job.request.identity_method,
+        )
 
     def _save_native_metadata(
         self,
@@ -1303,7 +1473,16 @@ class JobManager:
             "postprocess": None,
             "warnings": job.warnings,
             "references": [usage.model_dump() for usage in job.reference_usage],
-            "candidates_requested": job.request.candidates,
+            "identity": (
+                {
+                    "engine": job.request.identity_engine,
+                    "image": job.request.identity_image,
+                    "weight": job.request.identity_weight,
+                    "method": job.request.identity_method,
+                }
+                if job.request.identity_engine != "none"
+                else None
+            ),            "candidates_requested": job.request.candidates,
             "candidates_generated": len(
                 [item for item in job.candidate_summaries if item.get("status") == "ok"]
             ),

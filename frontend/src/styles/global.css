@@ -3629,6 +3629,79 @@ input[type="range"]::-moz-range-thumb {
   margin-top: 12px;
 }
 
+.reference-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: rgba(89, 227, 255, 0.04);
+  border: 1px solid rgba(89, 227, 255, 0.18);
+  border-radius: 12px;
+}
+
+.reference-identity-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.identity-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.identity-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  color: var(--text-soft);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.identity-option:hover:not(:disabled) {
+  border-color: rgba(89, 227, 255, 0.45);
+}
+
+.identity-option.is-active {
+  color: var(--text);
+  border-color: rgba(89, 227, 255, 0.6);
+  background: rgba(89, 227, 255, 0.1);
+  box-shadow: 0 0 18px rgba(89, 227, 255, 0.12);
+}
+
+.identity-option.is-missing {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.identity-option strong {
+  font-size: 11.5px;
+}
+
+.identity-option small {
+  color: var(--muted-deep);
+  font-family: var(--mono);
+  font-size: 8.5px;
+}
+
+.reference-identity-grid {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .reference-details summary {
   cursor: pointer;
   color: var(--text-soft);
@@ -3646,6 +3719,54 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(255, 106, 213, 0.05);
   border: 1px solid rgba(255, 106, 213, 0.25);
   border-radius: 12px;
+}
+
+.identity-used {
+  margin-top: 12px;
+  padding: 11px;
+  background: rgba(125, 255, 178, 0.05);
+  border: 1px solid rgba(125, 255, 178, 0.25);
+  border-radius: 12px;
+}
+
+.identity-used-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.identity-used-head strong {
+  font-size: 11.5px;
+}
+
+.identity-used-head span {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.identity-used-source {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.identity-used-source img {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.identity-used-source span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reference-used-head {

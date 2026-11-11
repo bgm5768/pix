@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import type {
+  IdentityEngine,
+  IdentityMethod,
   ReferenceAsset,
   ReferenceCapabilities,
   ReferenceFocus,
@@ -49,6 +51,34 @@ const FOCUS_OPTIONS: Array<{
   },
 ];
 
+const IDENTITY_ENGINES: Array<{
+  value: IdentityEngine;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "none",
+    label: "사용 안 함",
+    hint: "IP-Adapter만으로 참고 이미지의 외형·화풍을 반영합니다.",
+  },
+  {
+    value: "instantid",
+    label: "InstantID",
+    hint: "얼굴 임베딩 + SDXL ControlNet으로 얼굴을 강하게 고정합니다. 단일 인물 초상에 적합합니다.",
+  },
+  {
+    value: "pulid",
+    label: "PuLID",
+    hint: "ID 임베딩을 UNet에 직접 주입해 정체성을 유지합니다. EVA-CLIP이 추가로 필요합니다.",
+  },
+];
+
+const IDENTITY_METHODS: Array<{ value: IdentityMethod; label: string }> = [
+  { value: "fidelity", label: "fidelity · 참조에 충실" },
+  { value: "style", label: "style · 자유도 유지" },
+  { value: "neutral", label: "neutral · 정규화 없음" },
+];
+
 interface ReferencePanelProps {
   items: ReferenceItem[];
   samples: ReferenceAsset[];
@@ -61,6 +91,10 @@ interface ReferencePanelProps {
   busy: boolean;
   uploading: boolean;
   uploadError: string | null;
+  identityEngine: IdentityEngine;
+  identityMethod: IdentityMethod;
+  identityWeight: number;
+  identityImage: string | null;
   onAddAsset: (asset: ReferenceAsset) => void;
   onUploadFile: (file: File, replaceAssetId?: string) => void;
   onUpdateItem: (
@@ -70,6 +104,14 @@ interface ReferencePanelProps {
   onRemoveItem: (assetId: string) => void;
   onRefreshSamples: () => void;
   onRefreshCapabilities: () => void;
+  onIdentityChange: (
+    patch: Partial<{
+      engine: IdentityEngine;
+      method: IdentityMethod;
+      weight: number;
+      image: string | null;
+    }>,
+  ) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -91,12 +133,17 @@ export function ReferencePanel({
   busy,
   uploading,
   uploadError,
+  identityEngine,
+  identityMethod,
+  identityWeight,
+  identityImage,
   onAddAsset,
   onUploadFile,
   onUpdateItem,
   onRemoveItem,
   onRefreshSamples,
   onRefreshCapabilities,
+  onIdentityChange,
 }: ReferencePanelProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const replaceTargetRef = useRef<string | undefined>(undefined);
@@ -109,6 +156,12 @@ export function ReferencePanel({
   );
   const ready =
     Boolean(capabilities?.available) && capabilities?.checkpoint_compatible !== false;
+  const engineReady = (engine: IdentityEngine) => {
+    if (engine === "none") return true;
+    if (!capabilities) return false;
+    return capabilities.identity_engines.includes(engine);
+  };
+  const identitySource = items.find((item) => item.id === identityImage) ?? null;
 
   const openPicker = (replaceAssetId?: string) => {
     replaceTargetRef.current = replaceAssetId;
@@ -212,7 +265,6 @@ export function ReferencePanel({
             최대 {maxReferences}장 · {checkpoint || "체크포인트 미선택"}
           </span>
         </div>
-
         <div
           className={`reference-dropzone ${dragging ? "is-dragging" : ""} ${
             atLimit ? "is-disabled" : ""
@@ -331,6 +383,143 @@ export function ReferencePanel({
               );
             })}
           </div>
+        )}
+      </div>
+
+      <div className="reference-identity">
+        <div className="reference-identity-head">
+          <span className="field-label">얼굴 동일성 고정 · FACE IDENTITY</span>
+          <span className="micro-badge">
+            {identityEngine === "none"
+              ? "OFF"
+              : identityEngine === "instantid"
+                ? "INSTANTID"
+                : "PULID"}
+          </span>
+        </div>
+
+        <div className="identity-switch">
+          {IDENTITY_ENGINES.map((engine) => {
+            const available = engineReady(engine.value);
+            const active = identityEngine === engine.value;
+            return (
+              <button
+                key={engine.value}
+                type="button"
+                className={`identity-option ${active ? "is-active" : ""} ${
+                  available ? "" : "is-missing"
+                }`}
+                onClick={() => onIdentityChange({ engine: engine.value })}
+                disabled={busy}
+                title={
+                  available
+                    ? engine.hint
+                    : `${engine.label} 설치가 필요합니다. ${capabilities?.identity_guidance ?? ""}`
+                }
+              >
+                <strong>{engine.label}</strong>
+                <small>
+                  {engine.value === "none"
+                    ? "IP-Adapter만 사용"
+                    : available
+                      ? "설치 완료"
+                      : "설치 필요"}
+                </small>
+              </button>
+            );
+          })}
+        </div>
+
+        {identityEngine !== "none" && (
+          <>
+            <p className="reference-focus-hint">
+              {IDENTITY_ENGINES.find((engine) => engine.value === identityEngine)?.hint}
+            </p>
+            <div className="reference-identity-grid">
+              <label className="reference-control">
+                <span>얼굴 고정용 이미지</span>
+                <select
+                  className="select-input select-small"
+                  value={identityImage ?? ""}
+                  onChange={(event) =>
+                    onIdentityChange({ image: event.target.value || null })
+                  }
+                  disabled={busy || items.length === 0}
+                >
+                  <option value="">선택해 주세요</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {identityEngine === "pulid" && (
+                <label className="reference-control">
+                  <span>적용 방식</span>
+                  <select
+                    className="select-input select-small"
+                    value={identityMethod}
+                    onChange={(event) =>
+                      onIdentityChange({ method: event.target.value as IdentityMethod })
+                    }
+                    disabled={busy}
+                  >
+                    {IDENTITY_METHODS.map((method) => (
+                      <option key={method.value} value={method.value}>
+                        {method.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="reference-control reference-strength">
+                <span>
+                  IDENTITY <strong>×{identityWeight.toFixed(2)}</strong>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.05}
+                  value={identityWeight}
+                  onChange={(event) =>
+                    onIdentityChange({ weight: Number(event.target.value) })
+                  }
+                  disabled={busy}
+                />
+              </label>
+            </div>
+            {!identityImage && (
+              <p className="reference-guidance is-warning">
+                얼굴을 고정할 참고 이미지를 선택해 주세요. 얼굴이 정면으로 보이는 사진이 가장
+                잘됩니다.
+              </p>
+            )}
+            {identitySource && identitySource.focus !== "face" && (
+              <p className="reference-guidance">
+                선택한 참고 이미지의 초점이 &quot;{identitySource.focus}&quot;입니다. 얼굴 고정
+                전용으로 쓸 거라면 초점을 &quot;얼굴 · 표정&quot;으로 바꾸는 편이 자연스럽습니다.
+              </p>
+            )}
+            {identityEngine === "instantid" && (
+              <p className="reference-guidance is-muted">
+                InstantID는 CFG를 4~5로 낮추면 얼굴이 더 자연스럽게 유지됩니다. 워터마크를
+                피하려면 1024px 대신 1016px 해상도를 권장합니다.
+              </p>
+            )}
+            {identityEngine === "pulid" && (
+              <p className="reference-guidance is-muted">
+                PuLID는 EVA-CLIP을 추가로 사용하므로 VRAM을 더 많이 먹고, 기준 체크포인트
+                품질에 따라 결과 편차가 있습니다.
+              </p>
+            )}
+            {!engineReady(identityEngine) && capabilities?.identity_guidance && (
+              <p className="reference-guidance is-warning">
+                {capabilities.identity_guidance}
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -454,7 +643,7 @@ export function ReferencePanel({
 
       {capabilities && (capabilities.instantid_note || capabilities.pulid_note) && (
         <details className="reference-details">
-          <summary>얼굴 동일성(InstantID · PuLID) 검토</summary>
+          <summary>얼굴 동일성(InstantID · PuLID) 안내</summary>
           <p>{capabilities.instantid_note}</p>
           <p>{capabilities.pulid_note}</p>
         </details>

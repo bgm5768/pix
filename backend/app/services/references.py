@@ -430,6 +430,138 @@ async def _object_info(comfy: ComfyClient, node: str) -> dict[str, Any] | None:
         return None
 
 
+def _insightface_models(settings: Settings) -> list[str]:
+    """List the InsightFace detection models installed for InstantID/PuLID."""
+    root = Path(settings.comfyui.models_dir).expanduser() / "insightface" / "models"
+    if not root.is_dir():
+        return []
+    found: list[str] = []
+    for path in sorted(root.rglob("*.onnx")):
+        found.append(str(path.relative_to(root)).replace("\\", "/"))
+    return found
+
+
+def _antelopev2_installed(settings: Settings) -> bool:
+    root = (
+        Path(settings.comfyui.models_dir).expanduser()
+        / "insightface"
+        / "models"
+        / "antelopev2"
+    )
+    return root.is_dir() and any(root.glob("*.onnx"))
+
+
+async def get_identity_capabilities(
+    settings: Settings, comfy: ComfyClient
+) -> dict[str, Any]:
+    """Detect the InstantID / PuLID face-identity stacks."""
+    node_names = [
+        "InstantIDModelLoader",
+        "InstantIDFaceAnalysis",
+        "ApplyInstantID",
+        "PulidModelLoader",
+        "PulidEvaClipLoader",
+        "ApplyPulid",
+        "ControlNetLoader",
+    ]
+    infos = await asyncio.gather(
+        *[_object_info(comfy, name) for name in node_names],
+        return_exceptions=False,
+    )
+    info_by_name: dict[str, dict[str, Any] | None] = dict(zip(node_names, infos))
+
+    instantid_files = _node_files(
+        info_by_name.get("InstantIDModelLoader"), "InstantIDModelLoader", "instantid_file"
+    )
+    pulid_files = _node_files(
+        info_by_name.get("PulidModelLoader"), "PulidModelLoader", "pulid_file"
+    )
+    controlnet_files = _node_files(
+        info_by_name.get("ControlNetLoader"), "ControlNetLoader", "control_net_name"
+    )
+
+    instantid_node = bool(info_by_name.get("InstantIDModelLoader")) and bool(
+        info_by_name.get("ApplyInstantID")
+    )
+    pulid_node = bool(info_by_name.get("PulidModelLoader")) and bool(
+        info_by_name.get("ApplyPulid")
+    )
+    instantid_model = bool(instantid_files)
+    pulid_model = bool(pulid_files)
+    instantid_controlnet = any(
+        "instantid" in name.lower() for name in controlnet_files
+    )
+    insightface_models = _insightface_models(settings)
+    insightface_available = _antelopev2_installed(settings)
+
+    guidance_parts: list[str] = []
+    custom_nodes = Path(settings.comfyui.main_path).expanduser().parent / "custom_nodes"
+    models_dir = Path(settings.comfyui.models_dir).expanduser()
+    if not instantid_node:
+        guidance_parts.append(
+            "InstantID 노드가 없습니다. ComfyUI_InstantID를 custom_nodes에 클론하고 "
+            "ComfyUI를 재시작해 주세요."
+        )
+    if not instantid_model:
+        guidance_parts.append(
+            f"InstantID 모델이 없습니다. {models_dir / 'instantid'}에 ip-adapter.bin을 "
+            "넣어 주세요."
+        )
+    if not instantid_controlnet:
+        guidance_parts.append(
+            f"InstantID ControlNet이 없습니다. {models_dir / 'controlnet'}에 "
+            "controlnet-instantid.safetensors를 넣어 주세요."
+        )
+    if not pulid_node:
+        guidance_parts.append(
+            "PuLID 노드가 없습니다. PuLID_ComfyUI를 custom_nodes에 클론하고 ComfyUI를 "
+            "재시작해 주세요."
+        )
+    if not pulid_model:
+        guidance_parts.append(
+            f"PuLID 모델이 없습니다. {models_dir / 'pulid'}에 "
+            "ip-adapter_pulid_sdxl_fp16.safetensors를 넣어 주세요."
+        )
+    if not insightface_available:
+        guidance_parts.append(
+            f"InsightFace(antelopev2) 모델이 없습니다. {models_dir / 'insightface' / 'models'}"
+            "에 antelopev2 압축을 풀어 넣어 주세요."
+        )
+
+    return {
+        "instantid_node_installed": instantid_node,
+        "instantid_model": instantid_model,
+        "instantid_controlnet": instantid_controlnet,
+        "instantid_models": sorted(instantid_files),
+        "instantid_file": instantid_files[0] if instantid_files else "",
+        "controlnet_file": next(
+            (name for name in controlnet_files if "instantid" in name.lower()), ""
+        ),
+        "pulid_node_installed": pulid_node,
+        "pulid_model": pulid_model,
+        "pulid_models": sorted(pulid_files),
+        "pulid_file": pulid_files[0] if pulid_files else "",
+        "insightface_available": insightface_available,
+        "insightface_models": insightface_models,
+        "instantid_available": instantid_node
+        and instantid_model
+        and instantid_controlnet
+        and insightface_available,
+        "pulid_available": pulid_node
+        and pulid_model
+        and insightface_available,
+        "identity_engines": [
+            engine
+            for engine, ready in (
+                ("instantid", instantid_node and instantid_model and instantid_controlnet and insightface_available),
+                ("pulid", pulid_node and pulid_model and insightface_available),
+            )
+            if ready
+        ],
+        "identity_guidance": " ".join(guidance_parts),
+    }
+
+
 async def get_reference_capabilities(
     settings: Settings, comfy: ComfyClient, checkpoint: str | None = None
 ) -> ReferenceCapabilities:
@@ -507,6 +639,8 @@ async def get_reference_capabilities(
         checkpoint_compatible = None
         checkpoint_note = "SDXL 계열 체크포인트를 선택하면 호환성 정보를 표시합니다."
 
+    identity = await get_identity_capabilities(settings, comfy)
+
     return ReferenceCapabilities(
         available=available,
         node_installed=node_installed,
@@ -527,14 +661,16 @@ async def get_reference_capabilities(
         ),
         instantid_note=(
             "InstantID는 InsightFace 얼굴 임베딩과 SDXL ControlNet을 사용해 인물 얼굴을 "
-            "강하게 고정합니다. 별도 커스텀 노드·모델·insightface 설치가 필요하며, 단일 인물 "
-            "초상에 적합합니다. 이번 구현에는 포함하지 않았습니다."
+            "강하게 고정합니다. 단일 인물 초상에 적합하며, 참고 이미지 한 장을 "
+            "얼굴 고정용으로 지정하면 됩니다. 전용 커스텀 노드·모델·insightface 패키지가 "
+            "필요합니다."
         ),
         pulid_note=(
-            "PuLID는 SDXL UNet에 얼굴 특징을 주입해 정체성을 유지합니다. 별도 노드와 "
-            "EVA-CLIP/얼굴 인식 모델이 필요하며, 설치 난이도와 VRAM 사용량이 IP-Adapter보다 "
-            "높습니다. 얼굴 동일성이 핵심일 때 별도 검토 대상입니다."
+            "PuLID는 SDXL UNet에 ID 임베딩을 직접 주입해 정체성을 유지합니다. EVA-CLIP과 "
+            "얼굴 인식 모델이 필요하고 VRAM 사용량이 IP-Adapter보다 큽니다. "
+            "fidelity는 참조에 더 가깝고 style은 체크포인트 자유도를 남깁니다."
         ),
         max_references=int(settings.generation.reference_max_references),
         presets=["PLUS (high strength)", "PLUS FACE (portraits)"],
+        **identity,
     )

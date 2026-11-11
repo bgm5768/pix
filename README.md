@@ -11,6 +11,8 @@
   자동 분석해 카드에 표시하고 작업 메타데이터에 함께 저장
 - **호환성 안내**: IP-Adapter 노드/모델이 없거나 SDXL 계열이 아닌 체크포인트를 고르면
   무엇을 설치·선택해야 하는지 화면과 오류 메시지로 안내
+- **얼굴 동일성 고정**: InstantID / PuLID로 참고 이미지 한 장의 얼굴을 그대로 유지하며
+  새 장면을 생성 (별도 커스텀 노드·모델·insightface 필요, 화면에서 설치 상태 표시)
 - **페이지별 모델**: 픽셀 페이지에는 pixel/sprite 계열, 이미지·레퍼런스 페이지에는 SDXL 일반 모델만 표시
 - **이미지 LoRA**: `sexy` 슬라이더 LoRA 선택 시 트리거 단어를 이미지 프롬프트에 자동 추가
 - **한국어 → 영어 번역**: 이미지/레퍼런스 페이지의 한국어 프롬프트를 오프라인 ONNX 모델
@@ -345,7 +347,45 @@ git clone --depth 1 https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
   Flux/SD3/Hunyuan 등 비-SDXL 모델은 호환성 안내와 함께 생성이 차단됩니다.
 - 애니메 모델(NoobAI/Pony)에 실사 참고 사진을 넣을 때는 강도 0.4~0.7을 권장합니다.
 
-### 3.6 배경 분리 모델 (rembg)
+### 3.6 얼굴 동일성 유지 (InstantID · PuLID)
+
+레퍼런스 페이지에서 참고 이미지 한 장의 **얼굴을 그대로 유지**하고 싶을 때 사용합니다.
+
+| 파일 | 크기 | 저장 위치 | 출처 |
+|---|---|---|---|
+| `ip-adapter.bin` (InstantID) | 약 1.61GB | `models\instantid\` | [InstantX/InstantID](https://huggingface.co/InstantX/InstantID) |
+| `controlnet-instantid.safetensors` | 약 2.33GB | `models\controlnet\` | 위와 동일 (`ControlNetModel/diffusion_pytorch_model.safetensors`) |
+| `ip-adapter_pulid_sdxl_fp16.safetensors` (PuLID) | 약 755MB | `models\pulid\` | [huchenlei/ipadapter_pulid](https://huggingface.co/huchenlei/ipadapter_pulid) |
+| `antelopev2` (얼굴 인식) | 약 344MB | `models\insightface\models\antelopev2\` | [MonsterMMORPG/tools](https://huggingface.co/MonsterMMORPG/tools) 의 `antelopev2.zip` |
+
+커스텀 노드와 파이썬 패키지:
+
+```bat
+cd /d "%LOCALAPPDATA%\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI\custom_nodes"
+git clone --depth 1 https://github.com/cubiq/ComfyUI_InstantID.git
+git clone --depth 1 https://github.com/cubiq/PuLID_ComfyUI.git
+
+cd /d "%LOCALAPPDATA%\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI"
+.venv\Scripts\python.exe -m pip install insightface onnxruntime timm ftfy facexlib
+```
+
+> `antelopev2.zip`은 `models\insightface\models\antelopev2\`에 풀어 넣습니다.
+> PuLID의 EVA02-CLIP-L-14-336은 첫 실행 때 자동으로 내려받습니다(Hugging Face 캐시).
+> 설치 후 **ComfyUI를 반드시 재시작**하세요.
+
+레퍼런스 페이지의 **얼굴 동일성 고정(FACE IDENTITY)** 영역에서
+`사용 안 함 / InstantID / PuLID`를 고르고, 얼굴 고정용 참고 이미지와 강도를 지정합니다.
+설치 상태는 `NODE/PLUS/FACE/CLIP-VISION/SDXL` 배너와 함께 표시되며, 필요한 항목이 없으면
+무엇을 설치해야 하는지 안내합니다.
+
+- **InstantID**: 얼굴 임베딩 + SDXL ControlNet(키포인트)으로 얼굴을 강하게 고정합니다.
+  단일 인물 초상에 가장 잘 맞습니다. CFG를 4~5로 낮추면 얼굴이 더 자연스럽습니다.
+  1024px에서는 워터마크가 생길 수 있어 768px를 권장합니다.
+- **PuLID**: ID 임베딩을 UNet에 직접 주입합니다. EVA-CLIP을 추가로 사용하므로 VRAM을 더
+  먹고 기준 체크포인트에 따라 편차가 있습니다. `fidelity`(참조에 충실)/`style`(자유도)/
+  `neutral` 방식을 선택할 수 있습니다.
+
+### 3.7 배경 분리 모델 (rembg)
 
 투명 배경을 켜면 로컬 `rembg`가 u2net 모델을 사용합니다.
 첫 실행 시 자동으로 다운로드됩니다(약 176MB).
@@ -360,7 +400,7 @@ C:\Users\<사용자>\.rembg\models\u2net\u2net.onnx
 인터넷이 없거나 모델 다운로드에 실패하면 내장된 색상 플러드필 방식으로 자동 대체되고,
 UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_enabled: false`로 끌 수도 있습니다.
 
-### 3.6 한국어 → 영어 번역 모델 (opus-mt-ko-en)
+### 3.8 한국어 → 영어 번역 모델 (opus-mt-ko-en)
 
 이미지 페이지의 자동 번역은 PyTorch 없이 CPU에서 도는 양자화 ONNX 모델을 사용합니다.
 
@@ -466,16 +506,29 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 > 동일 인물을 보장하지 않습니다. 얼굴을 고정해야 하는 작업은 InstantID 또는 PuLID를
 > 별도로 검토해야 합니다(아래 4.4).
 
-### 4.4 얼굴 동일성 유지 (InstantID · PuLID 검토)
+### 4.4 얼굴 동일성 유지 (InstantID · PuLID)
+
+레퍼런스 페이지의 **얼굴 동일성 고정(FACE IDENTITY)** 영역에서 사용할 수 있습니다.
+
+1. 참고 이미지 중 얼굴이 정면으로 잘 보이는 한 장을 고릅니다(초점은 `얼굴 · 표정` 권장).
+2. `사용 안 함` → `InstantID` 또는 `PuLID`를 선택합니다.
+3. **얼굴 고정용 이미지**에서 그 참고 이미지를 고르고 **IDENTITY** 강도를 정합니다
+   (기본 0.85, 0~2.0).
+4. PuLID는 **적용 방식**도 고를 수 있습니다.
+   - `fidelity`: 참조 얼굴에 가장 충실 (기본)
+   - `style`: 체크포인트 자유도를 남기고 얼굴은 참고
+   - `neutral`: 정규화 없이 적용 (강도를 낮춰서 사용)
+5. **레퍼런스 생성**을 누르면 프롬프트와 참고 이미지 조건에 더해 얼굴 고정 조건이 함께
+   적용됩니다. 결과 패널에 `얼굴 동일성 고정 · INSTANTID/PULID`로 표시됩니다.
 
 | 방식 | 원리 | 필요한 것 | 참고 |
 |---|---|---|---|
-| IP-Adapter Plus (현재 구현) | CLIP Vision 임베딩을 교차 어텐션에 주입 | 위 3.5의 노드/모델 | 얼굴 "유사성", 여러 참고 동시 사용 가능 |
-| InstantID | InsightFace 임베딩 + SDXL ControlNet | `ComfyUI_InstantID`, `instantid-faceid.bin`, `controlnet-instantid`, insightface | 단일 인물 초상, 얼굴 고정력이 가장 강함 |
-| PuLID | UNet에 ID 임베딩 직접 주입 | `ComfyUI_PuLID`, EVA-CLIP, antelopev2 | InstantID보다 가볍지만 얼굴 고정력은 약간 낮음 |
+| IP-Adapter Plus (기본) | CLIP Vision 임베딩을 교차 어텐션에 주입 | 3.5의 노드/모델 | 얼굴 "유사성", 여러 참고 동시 사용 가능 |
+| InstantID | InsightFace 임베딩 + SDXL ControlNet | 3.6의 노드/모델 | 단일 인물 초상, 얼굴 고정력이 가장 강함 |
+| PuLID | UNet에 ID 임베딩 직접 주입 | 3.6의 노드/모델 | InstantID보다 가볍지만 고정은 약간 낮음 |
 
-이번 구현에는 InstantID/PuLID를 포함하지 않았습니다. 레퍼런스 패널 하단의
-`얼굴 동일성(InstantID · PuLID) 검토` 설명에서 요약을 볼 수 있습니다.
+> 얼굴을 못 찾는 사진(뒤모습·심야·손 가림 등)을 주면 생성 중
+> `얼굴을 찾지 못했습니다` 오류가 납니다. 정면 사진으로 교체해 주세요.
 
 ### 4.5 다운로드 · 삭제
 
@@ -551,6 +604,8 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
         ├─ 참고 이미지별 LoadImage + IPAdapterAdvanced 체인
         ├─ 초점별 가중 방식 (linear / style transfer / composition)
         ├─ 얼굴 초점은 PLUS FACE 모델 사용 (미설치 시 PLUS로 대체 + 안내)
+        ├─ identity_engine=instantid → InstantIDFaceAnalysis + ControlNet + ApplyInstantID
+        ├─ identity_engine=pulid → PulidEvaClipLoader + ApplyPulid
         └─ 후처리 없이 원본 PNG + 축소 미리보기 저장
    ▼
 outputs/
@@ -594,7 +649,7 @@ outputs/
 | POST | `/api/translate` | 한국어 프롬프트를 영어로 번역 (오프라인 ONNX, CPU) |
 | GET | `/api/references/samples` | 제공된 참고 샘플 목록 |
 | POST | `/api/references/upload` | 참고 이미지 업로드 (multipart `file`) → 분석 결과 포함 |
-| GET | `/api/references/capabilities?checkpoint=...` | IP-Adapter 설치/호환 상태와 안내 문구 |
+| GET | `/api/references/capabilities?checkpoint=...` | IP-Adapter/얼굴 고정 설치·호환 상태와 안내 문구 |
 | GET | `/api/system` | GPU 사용률/VRAM/온도/전력, RAM, 대기열 상태 (2.5초 폴링용) |
 | GET | `/api/health` | 백엔드/ComfyUI/GPU/RAM/모델/큐 상태 |
 | GET | `/api/models/catalog` | 다운로드 가능한 모델과 설치/진행 상태 |
@@ -680,6 +735,11 @@ $body = @{
     @{ asset_id = $upload.id; strength = 0.85; focus = "face" },
     @{ asset_id = "sample_style";  strength = 0.55; focus = "style" }
   )
+  # 얼굴 동일성 고정 (선택): "none" | "instantid" | "pulid"
+  identity_engine = "instantid"
+  identity_image = $upload.id
+  identity_weight = 0.85
+  identity_method = "fidelity"   # pulid: fidelity | style | neutral
 } | ConvertTo-Json -Depth 5
 
 $job = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/generate" `
@@ -689,6 +749,8 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/jobs/$($job.job_id)"
 ```
 
 - `focus` 값: `appearance` / `face` / `style` / `pose` / `composition`
+- `identity_engine` 값: `none`(기본) / `instantid` / `pulid`
+- `identity_image`은 `reference_images`에 있는 자산 ID여야 하며, 그 이미지의 얼굴이 고정됩니다.
 - `asset_id`는 업로드 ID(`up_…`) 또는 제공 샘플 ID(`sample_portrait`, `sample_animal`,
   `sample_style`, `sample_scene`)입니다.
 - `strength` 0이면 해당 참고 이미지는 생성에 반영되지 않습니다.
@@ -723,6 +785,7 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 - `result.kind`: `"pixel"`, `"image"` 또는 `"reference"`
 - `result.image_url`, `result.image_preview_url`: 이미지/레퍼런스 페이지 결과 경로
 - `result.references`: 레퍼런스 작업에 적용된 참고 이미지(초점·강도·분석 요약) 목록
+- `result.identity`: 얼굴 동일성 고정 정보(`engine`, `image`, `weight`, `method`)
 - `prompt_original`: 사용자가 입력한 원문
 - `prompt_used`: 실제 SDXL에 전달된 문장 (번역문 + LoRA 트리거)
 - `prompt_translated`: 이번 작업에서 번역이 적용됐는지 여부
@@ -923,8 +986,22 @@ $deleted.deleted   # 삭제된 상대 경로 목록
 - 강도를 0.4~0.7로 낮추고 다시 시도합니다.
 - 애니메 모델(NoobAI/Pony)에 실사 참고 사진을 넣을수록 두드가 강해질 수 있습니다.
 - 사진 참고 → 애니메 모델 조합은 `style` 초점 대신 `appearance` 초점과 낮은 강도를 권장합니다.
-- 얼굴이 전혀 다른 사람처럼 나오면 IP-Adapter의 한계입니다. 동일 인물을 유지해야 하면
-  InstantID/PuLID 설치를 검토하세요(README 4.4).
+- **같은 얼굴**을 유지해야 한다면 아래의 InstantID / PuLID 얼굴 고정 기능을 사용하세요.
+
+### 얼굴 고정이 동작하지 않음 (`REFERENCE_UNSUPPORTED`)
+
+- 레퍼런스 패널의 **얼굴 동일성 고정** 영역에서 `설치 필요`로 표시되는 항목을 확인하세요.
+- `InstantID`가 설치 필요면 `ComfyUI_InstantID` 노드와 `models\instantid\ip-adapter.bin`,
+  `models\controlnet\controlnet-instantid.safetensors`가 필요합니다.
+- `PuLID`가 설치 필요면 `PuLID_ComfyUI` 노드와 `models\pulid\ip-adapter_pulid_sdxl_fp16.safetensors`가 필요합니다.
+- 두 방식 모두 `models\insightface\models\antelopev2`와 ComfyUI venv의 `insightface` 패키지가 필요합니다.
+- 모두 설치한 뒤에는 **ComfyUI를 재시작**하고 상태 배너의 `새로고침`을 누르세요.
+
+### "얼굴을 찾지 못했습니다" 오류
+
+- 얼굴 고정용 이미지에 정면 얼굴이 명확하게 보여야 합니다.
+- 너무 작거나 흐린 이미지, 마스크·손가락으로 가린 얼굴은 인식되지 않습니다.
+- 그래도 안 되면 IP-Adapter Plus의 `얼굴 · 표정` 초점을 사용하세요(얼굴 고정이 필요 없는 경우).
 
 ### 참고 업로드가 실패함 (`REFERENCE_ERROR`)
 
@@ -1047,8 +1124,9 @@ pix/
   ONNX 모델을 메모리에 올리느라 1초 안팎 걸릴 수 있습니다. 번역 모델(약 115MB)은
   `start.bat`이 자동으로 받고, `config/settings.yaml`의 `translation.enabled: false`로
   끌 수 있습니다. 번역 품질은 Marian 모델 특성상 완벽하지 않으므로 미리보기를 확인하세요.
-- **레퍼런스(얼굴 동일성)**: IP-Adapter는 "얼굴처럼 보이는" 유사성만 보장하며 동일 인물을
-  유지하지 않습니다. 동일 인물이 필요한 작업은 InstantID/PuLID 설치가 필요합니다.
+- **레퍼런스(얼굴 동일성)**: IP-Adapter만으로는 "얼굴처럼 보이는" 유사성만 보장하며 동일 인물을
+  유지하지 않습니다. 동일 인물이 필요한 작업은 InstantID/PuLID 얼굴 고정을 사용하세요
+  (설치는 README 3.6, 사용법 4.4).
 - **레퍼런스(가중 방식)**: 포즈 초점은 구도 레이어를 참고하는 정도이며, 정확한 관절 포즈를
   옮기려면 ControlNet OpenPose가 필요합니다.
 - **삭제**: 완료된 결과의 모든 파일과 메타데이터를 제거하며 되돌릴 수 없습니다.

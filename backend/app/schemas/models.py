@@ -15,6 +15,10 @@ GenerateKind = Literal["pixel", "image", "reference"]
 ModelCategory = Literal["pixel", "image", "other"]
 ImageSize = Literal[512, 768, 1024]
 ReferenceFocus = Literal["appearance", "face", "style", "pose", "composition"]
+# Face identity engines. ``none`` keeps plain IP-Adapter behaviour, while
+# InstantID/PuLID keep the face of one reference image.
+IdentityEngine = Literal["none", "instantid", "pulid"]
+IdentityMethod = Literal["fidelity", "style", "neutral"]
 
 
 class ReferenceInput(BaseModel):
@@ -58,6 +62,17 @@ class ReferenceUsage(BaseModel):
     analysis_summary: str = ""
 
 
+class IdentityUsage(BaseModel):
+    """Face identity engine applied to a reference job."""
+
+    engine: IdentityEngine = "none"
+    image: str | None = None
+    name: str = ""
+    url: str = ""
+    weight: float = 0.0
+    method: IdentityMethod = "fidelity"
+
+
 class ReferenceSamplesResponse(BaseModel):
     items: list[ReferenceAsset] = Field(default_factory=list)
 
@@ -80,6 +95,20 @@ class ReferenceCapabilities(BaseModel):
     pulid_note: str = ""
     max_references: int = 5
     presets: list[str] = Field(default_factory=list)
+    # Face identity engines (InstantID / PuLID).
+    instantid_available: bool = False
+    instantid_node_installed: bool = False
+    instantid_model: bool = False
+    instantid_controlnet: bool = False
+    instantid_models: list[str] = Field(default_factory=list)
+    pulid_available: bool = False
+    pulid_node_installed: bool = False
+    pulid_model: bool = False
+    pulid_models: list[str] = Field(default_factory=list)
+    insightface_available: bool = False
+    insightface_models: list[str] = Field(default_factory=list)
+    identity_engines: list[str] = Field(default_factory=list)
+    identity_guidance: str = ""
 
 
 class GenerateRequest(BaseModel):
@@ -111,6 +140,12 @@ class GenerateRequest(BaseModel):
     # Reference page: one or more uploaded/sample images. The order is kept
     # when chaining IP-Adapter nodes.
     reference_images: list[ReferenceInput] = Field(default_factory=list, max_length=5)
+    # Face identity: keep the face of one reference image with InstantID or
+    # PuLID instead of plain IP-Adapter conditioning.
+    identity_engine: IdentityEngine = "none"
+    identity_image: str | None = Field(default=None, max_length=80)
+    identity_weight: float = Field(default=0.85, ge=0.0, le=2.0)
+    identity_method: IdentityMethod = "fidelity"
 
     @field_validator("prompt")
     @classmethod
@@ -131,12 +166,19 @@ class GenerateRequest(BaseModel):
     @model_validator(mode="after")
     def _validate_references(self) -> "GenerateRequest":
         if self.kind != "reference":
+            if self.identity_engine != "none":
+                raise ValueError("얼굴 고정은 레퍼런스 페이지에서만 사용할 수 있습니다.")
             return self
         if not self.reference_images:
             raise ValueError("레퍼런스 이미지를 1장 이상 선택해 주세요.")
         asset_ids = [item.asset_id for item in self.reference_images]
         if len(set(asset_ids)) != len(asset_ids):
             raise ValueError("같은 참고 이미지를 여러 번 선택할 수 없습니다.")
+        if self.identity_engine != "none":
+            if not self.identity_image:
+                raise ValueError("얼굴을 고정할 참고 이미지를 선택해 주세요.")
+            if self.identity_image not in asset_ids:
+                raise ValueError("얼굴을 고정할 이미지는 참고 이미지 목록에서 골라 주세요.")
         return self
 
 
@@ -200,6 +242,7 @@ class ResultInfo(BaseModel):
     candidate_score: float = 0.0
     panel_suspected: bool = False
     references: list[ReferenceUsage] = Field(default_factory=list)
+    identity: IdentityUsage | None = None
 
 
 class JobView(BaseModel):
@@ -383,6 +426,7 @@ class OutputItem(BaseModel):
     candidate_score: float = 0.0
     panel_suspected: bool = False
     references: list[ReferenceUsage] = Field(default_factory=list)
+    identity: IdentityUsage | None = None
 
 
 class OutputsResponse(BaseModel):

@@ -15,6 +15,8 @@ export type PageKind = "pixel" | "image" | "reference";
 export type ImageSize = 512 | 768 | 1024;
 export type ModelCategory = "pixel" | "image" | "other";
 export type ReferenceFocus = "appearance" | "face" | "style" | "pose" | "composition";
+export type IdentityEngine = "none" | "instantid" | "pulid";
+export type IdentityMethod = "fidelity" | "style" | "neutral";
 
 export interface ReferenceInput {
   asset_id: string;
@@ -55,6 +57,15 @@ export interface ReferenceUsage {
   analysis_summary: string;
 }
 
+export interface IdentityUsage {
+  engine: IdentityEngine;
+  image: string | null;
+  name: string;
+  url: string;
+  weight: number;
+  method: IdentityMethod;
+}
+
 export interface ReferenceItem extends ReferenceAsset {
   focus: ReferenceFocus;
   strength: number;
@@ -78,6 +89,19 @@ export interface ReferenceCapabilities {
   pulid_note: string;
   max_references: number;
   presets: string[];
+  instantid_available: boolean;
+  instantid_node_installed: boolean;
+  instantid_model: boolean;
+  instantid_controlnet: boolean;
+  instantid_models: string[];
+  pulid_available: boolean;
+  pulid_node_installed: boolean;
+  pulid_model: boolean;
+  pulid_models: string[];
+  insightface_available: boolean;
+  insightface_models: string[];
+  identity_engines: string[];
+  identity_guidance: string;
 }
 
 export interface ReferenceSamplesResponse {
@@ -104,6 +128,10 @@ export interface GenerateRequest {
   image_size: ImageSize;
   translate_prompt?: boolean;
   reference_images?: ReferenceInput[];
+  identity_engine?: IdentityEngine;
+  identity_image?: string | null;
+  identity_weight?: number;
+  identity_method?: IdentityMethod;
 }
 
 export interface QualityCheck {
@@ -156,6 +184,7 @@ export interface ResultInfo {
   candidate_score: number;
   panel_suspected: boolean;
   references?: ReferenceUsage[];
+  identity?: IdentityUsage | null;
 }
 
 export interface JobView {
@@ -356,6 +385,7 @@ export interface OutputItem {
   candidate_score: number;
   panel_suspected: boolean;
   references?: ReferenceUsage[];
+  identity?: IdentityUsage | null;
 }
 
 export interface OutputsResponse {
@@ -421,6 +451,10 @@ export interface AppSettings {
   referenceLora: string | null;
   referenceStrength: number;
   referenceFocus: ReferenceFocus;
+  identityEngine: IdentityEngine;
+  identityMethod: IdentityMethod;
+  identityWeight: number;
+  identityImage: string | null;
   autoTranslate: boolean;
 }
 

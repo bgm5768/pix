@@ -12,6 +12,7 @@ from PIL import Image
 
 from app.config import PROJECT_ROOT, Settings
 from app.schemas.models import (
+    IdentityUsage,
     OutputItem,
     OutputsResponse,
     QualityCheck,
@@ -210,6 +211,7 @@ def reference_result_info(
     job_id: str,
     image_size: int,
     references: list[ReferenceUsage] | None = None,
+    identity: IdentityUsage | None = None,
     mode: str = "icon",
     candidates_generated: int = 1,
     candidate_index: int = 0,
@@ -222,6 +224,7 @@ def reference_result_info(
         image_size,
         kind="reference",
         references=references,
+        identity=identity,
         mode=mode,
         candidates_generated=candidates_generated,
         candidate_index=candidate_index,
@@ -235,6 +238,7 @@ def native_result_info(
     image_size: int,
     kind: str = "image",
     references: list[ReferenceUsage] | None = None,
+    identity: IdentityUsage | None = None,
     mode: str = "icon",
     candidates_generated: int = 1,
     candidate_index: int = 0,
@@ -267,6 +271,7 @@ def native_result_info(
         candidate_score=0.0,
         panel_suspected=False,
         references=list(references or []),
+        identity=identity,
     )
 
 
@@ -366,6 +371,17 @@ def _load_references(meta: dict[str, Any]) -> list[ReferenceUsage]:
     return items
 
 
+def _load_identity(meta: dict[str, Any]) -> IdentityUsage | None:
+    raw = meta.get("identity")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        usage = IdentityUsage.model_validate(raw)
+    except Exception:
+        return None
+    return usage if usage.engine != "none" else None
+
+
 def _list_native_outputs(settings: Settings, limit: int, kind: str) -> OutputsResponse:
     files = sorted(
         settings.images_dir.glob("*_image_*.png"),
@@ -420,6 +436,7 @@ def _list_native_outputs(settings: Settings, limit: int, kind: str) -> OutputsRe
                 candidate_score=0.0,
                 panel_suspected=False,
                 references=_load_references(meta),
+                identity=_load_identity(meta),
             )
         )
     return OutputsResponse(items=items, total=len(files))

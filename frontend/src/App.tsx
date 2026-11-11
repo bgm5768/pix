@@ -17,6 +17,8 @@ import type {
   DisplayResult,
   GenerateRequest,
   HealthResponse,
+  IdentityEngine,
+  IdentityMethod,
   ImageSize,
   JobStatus,
   JobView,
@@ -70,6 +72,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   referenceLora: null,
   referenceStrength: 0.85,
   referenceFocus: "appearance",
+  identityEngine: "none",
+  identityMethod: "fidelity",
+  identityWeight: 0.85,
+  identityImage: null,
   autoTranslate: true,
 };
 
@@ -128,6 +134,16 @@ function readStoredSettings(): AppSettings | null {
     )
       ? (parsed.referenceFocus as ReferenceFocus)
       : DEFAULT_SETTINGS.referenceFocus;
+    const identityEngine = ["none", "instantid", "pulid"].includes(
+      String(parsed.identityEngine),
+    )
+      ? (parsed.identityEngine as IdentityEngine)
+      : DEFAULT_SETTINGS.identityEngine;
+    const identityMethod = ["fidelity", "style", "neutral"].includes(
+      String(parsed.identityMethod),
+    )
+      ? (parsed.identityMethod as IdentityMethod)
+      : DEFAULT_SETTINGS.identityMethod;
     return {
       mode,
       outputSize,
@@ -158,6 +174,13 @@ function readStoredSettings(): AppSettings | null {
         ? Number(parsed.referenceStrength)
         : DEFAULT_SETTINGS.referenceStrength,
       referenceFocus,
+      identityEngine,
+      identityMethod,
+      identityWeight: Number.isFinite(parsed.identityWeight)
+        ? Number(parsed.identityWeight)
+        : DEFAULT_SETTINGS.identityWeight,
+      identityImage:
+        typeof parsed.identityImage === "string" ? parsed.identityImage : null,
       autoTranslate:
         typeof parsed.autoTranslate === "boolean" ? parsed.autoTranslate : true,
     };
@@ -201,6 +224,7 @@ function displayFromOutput(item: OutputItem): DisplayResult {
       candidate_score: item.candidate_score ?? 0,
       panel_suspected: item.panel_suspected ?? false,
       references: item.references ?? [],
+      identity: item.identity ?? null,
     },
   };
 }
@@ -553,6 +577,10 @@ export default function App() {
             referenceLora: loaded.reference_lora || "",
             referenceStrength: loaded.reference_default_strength ?? 0.85,
             referenceFocus: loaded.reference_default_focus ?? "appearance",
+            identityEngine: "none",
+            identityMethod: "fidelity",
+            identityWeight: 0.85,
+            identityImage: null,
             autoTranslate: true,
           });
         } else {
@@ -824,6 +852,17 @@ export default function App() {
         }));
         return;
       }
+      if (isReference && settings.identityEngine !== "none") {
+        const identityAsset = settings.identityImage;
+        const known = referenceItems.some((item) => item.id === identityAsset);
+        if (!identityAsset || !known) {
+          setErrors((current) => ({
+            ...current,
+            [targetPage]: "얼굴을 고정할 참고 이미지를 선택해 주세요.",
+          }));
+          return;
+        }
+      }
 
       let seed: number | null = overrideSeed ?? null;
       if (seed === null && settings.seedInput.trim() !== "") {
@@ -903,6 +942,13 @@ export default function App() {
               focus: item.focus,
             }))
           : undefined,
+        identity_engine: isReference ? settings.identityEngine : "none",
+        identity_image:
+          isReference && settings.identityEngine !== "none"
+            ? (settings.identityImage ?? null)
+            : null,
+        identity_weight: settings.identityWeight,
+        identity_method: settings.identityMethod,
       };
 
       setErrors((current) => ({ ...current, [targetPage]: null }));
@@ -1075,7 +1121,36 @@ export default function App() {
 
   const handleRemoveReference = useCallback((assetId: string) => {
     setReferenceItems((current) => current.filter((item) => item.id !== assetId));
+    setSettings((current) =>
+      current.identityImage === assetId
+        ? { ...current, identityImage: null }
+        : current,
+    );
   }, []);
+
+  const handleIdentityChange = useCallback(
+    (patch: {
+      engine?: IdentityEngine;
+      method?: IdentityMethod;
+      weight?: number;
+      image?: string | null;
+    }) => {
+      setSettings((current) => {
+        const next = { ...current };
+        if (patch.engine !== undefined) next.identityEngine = patch.engine;
+        if (patch.method !== undefined) next.identityMethod = patch.method;
+        if (patch.weight !== undefined) next.identityWeight = patch.weight;
+        if (patch.image !== undefined) next.identityImage = patch.image;
+        if (patch.engine && patch.engine !== "none" && !next.identityImage) {
+          const fallback =
+            referenceItems.find((item) => item.focus === "face") ?? referenceItems[0];
+          next.identityImage = fallback?.id ?? null;
+        }
+        return next;
+      });
+    },
+    [referenceItems],
+  );
 
   const handleUpdateReference = useCallback(
     (
@@ -1360,6 +1435,11 @@ export default function App() {
               onRemoveItem={handleRemoveReference}
               onRefreshSamples={() => void loadReferenceSamples()}
               onRefreshCapabilities={() => void loadReferenceCapabilities()}
+              identityEngine={settings.identityEngine}
+              identityMethod={settings.identityMethod}
+              identityWeight={settings.identityWeight}
+              identityImage={settings.identityImage}
+              onIdentityChange={handleIdentityChange}
             />
           )}
           <PromptPanel
