@@ -64,6 +64,9 @@ export interface IdentityUsage {
   url: string;
   weight: number;
   method: IdentityMethod;
+  control_weight?: number;
+  noise?: number;
+  include_style?: boolean;
 }
 
 export interface ReferenceItem extends ReferenceAsset {
@@ -132,6 +135,9 @@ export interface GenerateRequest {
   identity_image?: string | null;
   identity_weight?: number;
   identity_method?: IdentityMethod;
+  identity_control_weight?: number;
+  identity_noise?: number;
+  identity_include_style?: boolean;
 }
 
 export interface QualityCheck {
@@ -454,6 +460,9 @@ export interface AppSettings {
   identityEngine: IdentityEngine;
   identityMethod: IdentityMethod;
   identityWeight: number;
+  identityControlWeight: number;
+  identityNoise: number;
+  identityIncludeStyle: boolean;
   identityImage: string | null;
   autoTranslate: boolean;
 }

@@ -75,6 +75,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   identityEngine: "none",
   identityMethod: "fidelity",
   identityWeight: 0.85,
+  identityControlWeight: 0.5,
+  identityNoise: 0.35,
+  identityIncludeStyle: false,
   identityImage: null,
   autoTranslate: true,
 };
@@ -179,6 +182,16 @@ function readStoredSettings(): AppSettings | null {
       identityWeight: Number.isFinite(parsed.identityWeight)
         ? Number(parsed.identityWeight)
         : DEFAULT_SETTINGS.identityWeight,
+      identityControlWeight: Number.isFinite(parsed.identityControlWeight)
+        ? Number(parsed.identityControlWeight)
+        : DEFAULT_SETTINGS.identityControlWeight,
+      identityNoise: Number.isFinite(parsed.identityNoise)
+        ? Number(parsed.identityNoise)
+        : DEFAULT_SETTINGS.identityNoise,
+      identityIncludeStyle:
+        typeof parsed.identityIncludeStyle === "boolean"
+          ? parsed.identityIncludeStyle
+          : DEFAULT_SETTINGS.identityIncludeStyle,
       identityImage:
         typeof parsed.identityImage === "string" ? parsed.identityImage : null,
       autoTranslate:
@@ -580,6 +593,9 @@ export default function App() {
             identityEngine: "none",
             identityMethod: "fidelity",
             identityWeight: 0.85,
+            identityControlWeight: 0.5,
+            identityNoise: 0.35,
+            identityIncludeStyle: false,
             identityImage: null,
             autoTranslate: true,
           });
@@ -949,6 +965,9 @@ export default function App() {
             : null,
         identity_weight: settings.identityWeight,
         identity_method: settings.identityMethod,
+        identity_control_weight: settings.identityControlWeight,
+        identity_noise: settings.identityNoise,
+        identity_include_style: settings.identityIncludeStyle,
       };
 
       setErrors((current) => ({ ...current, [targetPage]: null }));
@@ -1133,6 +1152,9 @@ export default function App() {
       engine?: IdentityEngine;
       method?: IdentityMethod;
       weight?: number;
+      controlWeight?: number;
+      noise?: number;
+      includeStyle?: boolean;
       image?: string | null;
     }) => {
       setSettings((current) => {
@@ -1140,6 +1162,13 @@ export default function App() {
         if (patch.engine !== undefined) next.identityEngine = patch.engine;
         if (patch.method !== undefined) next.identityMethod = patch.method;
         if (patch.weight !== undefined) next.identityWeight = patch.weight;
+        if (patch.controlWeight !== undefined) {
+          next.identityControlWeight = patch.controlWeight;
+        }
+        if (patch.noise !== undefined) next.identityNoise = patch.noise;
+        if (patch.includeStyle !== undefined) {
+          next.identityIncludeStyle = patch.includeStyle;
+        }
         if (patch.image !== undefined) next.identityImage = patch.image;
         if (patch.engine && patch.engine !== "none" && !next.identityImage) {
           const fallback =
@@ -1438,6 +1467,9 @@ export default function App() {
               identityEngine={settings.identityEngine}
               identityMethod={settings.identityMethod}
               identityWeight={settings.identityWeight}
+              identityControlWeight={settings.identityControlWeight}
+              identityNoise={settings.identityNoise}
+              identityIncludeStyle={settings.identityIncludeStyle}
               identityImage={settings.identityImage}
               onIdentityChange={handleIdentityChange}
             />

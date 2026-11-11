@@ -3695,11 +3695,73 @@ input[type="range"]::-moz-range-thumb {
   font-size: 8.5px;
 }
 
+.reference-explainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  background: rgba(89, 227, 255, 0.05);
+  border: 1px solid rgba(89, 227, 255, 0.18);
+  border-radius: 10px;
+}
+
+.reference-explainer svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-2);
+}
+
+.reference-explainer strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text-soft);
+  font-size: 10.5px;
+}
+
+.reference-explainer b {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
 .reference-identity-grid {
   display: flex;
   align-items: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.identity-style-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.identity-style-toggle input {
+  margin-top: 2px;
+}
+
+.identity-style-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.identity-style-toggle strong {
+  font-size: 11px;
+}
+
+.identity-style-toggle small {
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.5;
 }
 
 .reference-details summary {

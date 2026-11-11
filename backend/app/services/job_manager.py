@@ -1017,8 +1017,11 @@ class JobManager:
                 "class_type": "LoadImage",
                 "inputs": {"image": identity_image},
             }
+            # The advanced node separates the face embedding weight from the
+            # ControlNet (pose/structure) weight, so the prompt can still decide
+            # the scene instead of copying the reference photo.
             workflow["54"] = {
-                "class_type": "ApplyInstantID",
+                "class_type": "ApplyInstantIDAdvanced",
                 "inputs": {
                     "instantid": ["50", 0],
                     "insightface": ["51", 0],
@@ -1027,7 +1030,10 @@ class JobManager:
                     "model": current_model,
                     "positive": ["3", 0],
                     "negative": ["4", 0],
-                    "weight": weight,
+                    "ip_weight": weight,
+                    "cn_strength": round(float(job.request.identity_control_weight), 3),
+                    "noise": round(float(job.request.identity_noise), 3),
+                    "combine_embeds": "average",
                     "start_at": 0.0,
                     "end_at": 1.0,
                 },
@@ -1092,11 +1098,22 @@ class JobManager:
         user can mix appearance, style, and composition references with
         independent strengths. Face-focused references use the Plus Face model
         when it is installed.
+
+        The image used for face identity is skipped unless the user explicitly
+        asks for its look as well: IP-Adapter's ``linear`` weight copies the
+        whole photo (background, lighting, pose), which would drown out the
+        text prompt.
         """
+        identity_asset = (
+            job.request.identity_image
+            if job.request.identity_engine != "none"
+            and not job.request.identity_include_style
+            else None
+        )
         pairs = [
             (usage, filename)
             for usage, filename in zip(job.reference_usage, job.reference_files)
-            if usage.strength > 0
+            if usage.strength > 0 and usage.asset_id != identity_asset
         ]
         if not pairs:
             return
@@ -1439,6 +1456,9 @@ class JobManager:
             url=source.url if source else "",
             weight=round(float(job.request.identity_weight), 3),
             method=job.request.identity_method,
+            control_weight=round(float(job.request.identity_control_weight), 3),
+            noise=round(float(job.request.identity_noise), 3),
+            include_style=bool(job.request.identity_include_style),
         )
 
     def _save_native_metadata(
@@ -1479,6 +1499,9 @@ class JobManager:
                     "image": job.request.identity_image,
                     "weight": job.request.identity_weight,
                     "method": job.request.identity_method,
+                    "control_weight": job.request.identity_control_weight,
+                    "noise": job.request.identity_noise,
+                    "include_style": job.request.identity_include_style,
                 }
                 if job.request.identity_engine != "none"
                 else None

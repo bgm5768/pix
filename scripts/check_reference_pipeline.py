@@ -194,6 +194,11 @@ def main() -> int:
                     identity.get("engine") == engine,
                     str(identity),
                 )
+                ok &= check(
+                    f"{engine} 기본은 사진 전체 복사 off",
+                    identity.get("include_style") is False,
+                    str(identity.get("include_style")),
+                )
 
         outputs = client.get(f"{API}/api/outputs", params={"kind": "reference"}).json()
         ok &= check("레퍼런스 갤러리", len(outputs["items"]) >= 3, f"{len(outputs['items'])}개")

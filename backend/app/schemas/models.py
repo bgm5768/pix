@@ -71,6 +71,9 @@ class IdentityUsage(BaseModel):
     url: str = ""
     weight: float = 0.0
     method: IdentityMethod = "fidelity"
+    control_weight: float = 0.0
+    noise: float = 0.0
+    include_style: bool = False
 
 
 class ReferenceSamplesResponse(BaseModel):
@@ -146,6 +149,14 @@ class GenerateRequest(BaseModel):
     identity_image: str | None = Field(default=None, max_length=80)
     identity_weight: float = Field(default=0.85, ge=0.0, le=2.0)
     identity_method: IdentityMethod = "fidelity"
+    # InstantID only: how strongly the reference pose/structure is enforced
+    # (0 = the prompt decides the pose) and how much noise is injected to avoid
+    # the "burned" reference look.
+    identity_control_weight: float = Field(default=0.5, ge=0.0, le=5.0)
+    identity_noise: float = Field(default=0.35, ge=0.0, le=1.0)
+    # When false the identity image is not fed through IP-Adapter as well, so
+    # only the face is taken from it and the prompt drives everything else.
+    identity_include_style: bool = False
 
     @field_validator("prompt")
     @classmethod

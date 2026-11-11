@@ -94,6 +94,9 @@ interface ReferencePanelProps {
   identityEngine: IdentityEngine;
   identityMethod: IdentityMethod;
   identityWeight: number;
+  identityControlWeight: number;
+  identityNoise: number;
+  identityIncludeStyle: boolean;
   identityImage: string | null;
   onAddAsset: (asset: ReferenceAsset) => void;
   onUploadFile: (file: File, replaceAssetId?: string) => void;
@@ -109,6 +112,9 @@ interface ReferencePanelProps {
       engine: IdentityEngine;
       method: IdentityMethod;
       weight: number;
+      controlWeight: number;
+      noise: number;
+      includeStyle: boolean;
       image: string | null;
     }>,
   ) => void;
@@ -136,6 +142,9 @@ export function ReferencePanel({
   identityEngine,
   identityMethod,
   identityWeight,
+  identityControlWeight,
+  identityNoise,
+  identityIncludeStyle,
   identityImage,
   onAddAsset,
   onUploadFile,
@@ -398,6 +407,16 @@ export function ReferencePanel({
           </span>
         </div>
 
+        <div className="reference-explainer">
+          <InfoIcon size={14} />
+          <span>
+            <strong>프롬프트와 참고 이미지의 역할</strong>
+            참고 이미지의 <b>강도</b>가 높으면 사진 자체(배경·조명·포즈)가 복사되어 프롬프트가
+            눌립니다. 장면을 프롬프트로 바꾸려면 참고 강도를 0.2~0.4로 낮추거나, 얼굴만
+            유지하려면 아래 <b>얼굴 동일성 고정</b>을 사용하세요.
+          </span>
+        </div>
+
         <div className="identity-switch">
           {IDENTITY_ENGINES.map((engine) => {
             const available = engineReady(engine.value);
@@ -489,7 +508,60 @@ export function ReferencePanel({
                   disabled={busy}
                 />
               </label>
+              {identityEngine === "instantid" && (
+                <>
+                  <label className="reference-control reference-strength">
+                    <span>
+                      구조 제어 <strong>×{identityControlWeight.toFixed(2)}</strong>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={3}
+                      step={0.05}
+                      value={identityControlWeight}
+                      onChange={(event) =>
+                        onIdentityChange({ controlWeight: Number(event.target.value) })
+                      }
+                      disabled={busy}
+                    />
+                  </label>
+                  <label className="reference-control reference-strength">
+                    <span>
+                      노이즈 주입 <strong>×{identityNoise.toFixed(2)}</strong>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={identityNoise}
+                      onChange={(event) =>
+                        onIdentityChange({ noise: Number(event.target.value) })
+                      }
+                      disabled={busy}
+                    />
+                  </label>
+                </>
+              )}
             </div>
+            <label className="identity-style-toggle">
+              <input
+                type="checkbox"
+                checked={identityIncludeStyle}
+                onChange={(event) =>
+                  onIdentityChange({ includeStyle: event.target.checked })
+                }
+                disabled={busy}
+              />
+              <span>
+                <strong>참고 사진의 전체 모습도 함께 적용</strong>
+                <small>
+                  끄면(권장) 얼굴만 가져오고 나머지는 프롬프트가 결정합니다. 켜면 배경·조명·
+                  포즈까지 복사되어 프롬프트보다 사진이 강해집니다.
+                </small>
+              </span>
+            </label>
             {!identityImage && (
               <p className="reference-guidance is-warning">
                 얼굴을 고정할 참고 이미지를 선택해 주세요. 얼굴이 정면으로 보이는 사진이 가장
@@ -504,8 +576,10 @@ export function ReferencePanel({
             )}
             {identityEngine === "instantid" && (
               <p className="reference-guidance is-muted">
-                InstantID는 CFG를 4~5로 낮추면 얼굴이 더 자연스럽게 유지됩니다. 워터마크를
-                피하려면 1024px 대신 1016px 해상도를 권장합니다.
+                <strong>IDENTITY</strong>는 얼굴 임베딩, <strong>구조 제어</strong>는 참고
+                사진의 포즈·구도를 따르는 정도입니다. 구조 제어를 0~0.3으로 낮추면 프롬프트가
+                포즈와 장면을 더 자유롭게 결정합니다. <strong>노이즈 주입</strong>은 참고
+                이미지의 번짐을 줄여 얼굴을 더 선명하게 유지합니다.
               </p>
             )}
             {identityEngine === "pulid" && (
@@ -637,8 +711,9 @@ export function ReferencePanel({
 
       <p className="setting-note reference-note">
         참고 이미지와 모델의 차이가 클수록 강도를 낮추세요. 애니메 계열 모델(예: NoobAI)에 실사
-        사진을 넣을 때는 0.4~0.7을 권장합니다. 텍스트 프롬프트와 참고 이미지는 항상 함께
-        적용됩니다.
+        사진을 넣을 때는 0.4~0.7을 권장합니다. 참고 강도를 0.8 이상으로 올리면 사진 자체가
+        복사되어 프롬프트보다 참고 이미지가 강해집니다. 텍스트 프롬프트와 참고 이미지는 항상
+        함께 적용됩니다.
       </p>
 
       {capabilities && (capabilities.instantid_note || capabilities.pulid_note) && (
