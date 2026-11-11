@@ -11,10 +11,47 @@ import type {
   PageKind,
 } from "../types";
 
-const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(
+const ENV_API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(
   /\/+$/,
   "",
 );
+const API_BASE_KEY = "pixelforge.apiBase";
+
+function normalizeApiBase(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+/**
+ * The backend origin can be baked in at build time (VITE_API_BASE) and then
+ * overridden per browser, so the GitHub Pages UI can point at a LAN address or
+ * a new tunnel URL without rebuilding the site.
+ */
+export function getApiBase(): string {
+  try {
+    const saved = normalizeApiBase(localStorage.getItem(API_BASE_KEY) ?? "");
+    if (saved) return saved;
+  } catch {
+    // localStorage may be unavailable; fall back to the build-time value.
+  }
+  return ENV_API_BASE;
+}
+
+export function defaultApiBase(): string {
+  return ENV_API_BASE;
+}
+
+export function setApiBase(value: string): void {
+  const normalized = normalizeApiBase(value);
+  try {
+    if (normalized) {
+      localStorage.setItem(API_BASE_KEY, normalized);
+    } else {
+      localStorage.removeItem(API_BASE_KEY);
+    }
+  } catch {
+    // Ignore storage failures; the current page will still reload.
+  }
+}
 
 export class ApiError extends Error {
   code?: string;
@@ -33,7 +70,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await fetch(`${getApiBase()}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -97,7 +134,7 @@ export const api = {
 };
 
 export function downloadUrl(jobId: string): string {
-  return `${API_BASE}/api/download/${encodeURIComponent(jobId)}`;
+  return `${getApiBase()}/api/download/${encodeURIComponent(jobId)}`;
 }
 
 /**
@@ -110,5 +147,5 @@ export function assetUrl(path: string | null | undefined): string {
   if (/^(?:[a-z]+:)?\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) {
     return path;
   }
-  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  return `${getApiBase()}${path.startsWith("/") ? path : `/${path}`}`;
 }

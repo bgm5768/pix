@@ -64,8 +64,8 @@ comfyui:
    - `backend/.venv` 생성
    - `backend/requirements.txt` 설치
    - `frontend/dist`가 없으면 `npm install` + `npm run build`
-   - FastAPI 서버를 `http://127.0.0.1:8765`에서 시작
-   - 브라우저 자동 열기
+   - FastAPI 서버를 `http://0.0.0.0:8765`(모든 인터페이스)에서 시작
+   - 브라우저 자동 열기 (`http://127.0.0.1:8765`)
 3. ComfyUI가 꺼져 있으면 기존 ComfyUI 설치를 자동으로 기동합니다.
    (자동 기동이 싫으면 `config/settings.yaml`의 `comfyui.auto_start: false`)
 4. 상단에서 **픽셀 생성기** 또는 **이미지 생성기** 페이지를 고릅니다.
@@ -77,14 +77,14 @@ comfyui:
 
 ```bat
 cd /d C:\workspace\pix
-backend\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+backend\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765
 ```
 
 백엔드 작업 디렉터리는 `backend`여야 합니다.
 
 ```bat
 cd /d C:\workspace\pix\backend
-.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8765
 ```
 
 프론트엔드 개발 모드:
@@ -96,34 +96,61 @@ npm run dev
 
 Vite 개발 서버(`http://127.0.0.1:5173`)는 `/api`, `/files`를 8765로 프록시합니다.
 
-### GitHub Pages에서 사용하기 (로컬 GPU 유지)
+### 다른 PC에서 이 PC의 GPU 사용하기
 
-배포된 UI: <https://bgm5768.github.io/pix/>
+백엔드는 기본적으로 `0.0.0.0:8765`에 바인딩되어 같은 LAN의 다른 PC에서 접속할 수
+있습니다. UI는 백엔드가 직접 서빙하므로 다른 PC에서는 별도 빌드 없이 아래 주소를
+열면 됩니다.
 
-GitHub Pages는 **정적 UI만** 호스팅합니다. 이미지 생성은 여전히 이 PC의
-`start.bat` → FastAPI(`http://127.0.0.1:8765`) → ComfyUI + RTX GPU에서 실행됩니다.
-따라서 Pages 화면은 **백엔드가 실행 중인 같은 PC의 Chrome/Edge**에서 열어야 합니다.
-다른 PC나 휴대폰에서 열면 `127.0.0.1`이 그 기기를 가리키므로 연결되지 않습니다.
+**같은 Wi-Fi/LAN**
+
+1. 이 PC에서 `start.bat`을 실행합니다. 콘솔에 `LAN: http://192.168.0.3:8765`가 표시됩니다.
+2. 처음 한 번만 `scripts\allow_lan_firewall.bat`을 **관리자 권한**으로 실행합니다.
+   (TCP 8765 인바운드를 로컬 서브넷에만 허용)
+3. 다른 PC 브라우저에서 `http://192.168.0.3:8765`를 엽니다.
+   ComfyUI/모델/결과물 모두 이 PC의 것을 그대로 사용합니다.
+
+**다른 네트워크/외부에서 접속 (Cloudflare Tunnel)**
+
+`share_tunnel.bat`은 Cloudflare Quick Tunnel(HTTPS)을 열고 그 주소를 GitHub Pages
+빌드에 넣어 자동 재배포합니다. 포트 포워딩이나 공유기 설정이 필요 없습니다.
 
 1. 이 PC에서 `start.bat`을 실행해 백엔드와 ComfyUI를 켭니다.
-2. 같은 PC에서 <https://bgm5768.github.io/pix/>를 엽니다.
-3. 브라우저가 로컬 네트워크 접근 권한을 물으면 **허용**합니다.
-   (Chrome/Edge의 Private Network Access 정책)
-4. 상단에서 `이미지 생성기`를 고르고 프롬프트를 입력합니다.
-   체크포인트/LoRA 선택과 실제 생성 요청은 로컬 백엔드로 전달됩니다.
+2. `scripts\share_tunnel.bat`을 실행합니다.
+3. 콘솔에 표시되는 `https://....trycloudflare.com` 주소를 확인합니다.
+   (클립보드에도 복사됩니다. 이 창을 닫으면 공유가 중지됩니다.)
+4. 다른 PC에서 <https://bgm5768.github.io/pix/>를 열면 새 터널 주소가 적용되어 있습니다.
 
-배포는 `gh-pages` 브랜치에 정적 빌드 결과를 올리는 방식입니다. UI를 수정한 뒤
-`scripts/deploy_pages.bat`을 실행하면 `/pix/` base 빌드와 `gh-pages` 푸시가 한 번에 됩니다.
-GitHub 저장소의 **Settings → Pages** 소스는 `gh-pages` 브랜치의 `/ (root)`로 설정되어 있습니다.
+터널 주소는 실행할 때마다 바뀝니다. Pages를 다시 배포하지 않고 주소만 바꾸려면
+UI의 연결 오류 배너에 있는 **백엔드 주소** 입력란에 새 터널 주소를 붙여넣고
+**연결**을 누르세요. 입력한 주소는 그 브라우저의 `localStorage`에 저장됩니다.
+같은 방식으로 LAN 주소(`http://192.168.0.3:8765`)를 넣을 수도 있습니다.
 
-```bat
-cd /d C:\workspace\pix\frontend
-npm run build:pages
-```
+> **보안 경고**: Quick Tunnel 주소를 아는 사람은 누구나 이 PC의 GPU로 이미지를
+> 생성할 수 있습니다. 공유를 멈추려면 `share_tunnel.bat` 창을 닫거나 Ctrl+C를
+> 누르세요. 공유 중에는 터널 주소를 공개 채널에 올리지 마세요.
 
-Pages 빌드는 `.env.pages`의 `VITE_API_BASE=http://127.0.0.1:8765`를 사용합니다.
-백엔드는 `config/settings.yaml`의 `app.cors_origins`에 등록된
-`https://bgm5768.github.io`를 허용하고, Private Network Access 응답 헤더를 함께 보냅니다.
+**GitHub Pages 배포**
+
+- 배포된 UI: <https://bgm5768.github.io/pix/>
+- `scripts\deploy_pages.bat`: `/pix/` 빌드 + `gh-pages` 푸시. API 주소는
+  `.env.pages`의 `http://127.0.0.1:8765`로 되돌립니다(같은 PC용).
+- `scripts\share_tunnel.bat`: 터널 URL을 넣어 빌드/배포한 뒤 로컬 빌드를 복구합니다.
+- Pages 소스: 저장소 **Settings → Pages** → `gh-pages` 브랜치 `/ (root)`.
+
+Pages는 **정적 UI만** 호스팅합니다. 생성 요청은 항상 사용자가 지정한 백엔드
+(같은 PC의 `127.0.0.1`, LAN 주소, 또는 터널 주소)로 전달되며 ComfyUI와 GPU는
+이 PC에서만 동작합니다. `config/settings.yaml`의 `app.cors_origins`에 등록된
+`https://bgm5768.github.io`만 CORS를 허용하고 Private Network Access 응답 헤더도
+함께 보냅니다.
+
+**원격 접속 검증 (2026-11-11)**: `share_tunnel.bat`으로 Quick Tunnel을 열고
+`https://bgm5768.github.io/pix/`에서 원격 생성을 확인했습니다. 작업 ID
+`b5225f5c5517`, LUSTIFY! v2.0, 1024×1024, 28 steps, **13.2초**, PNG 다운로드
+`200 image/png` (1,426,033 bytes). 터널을 통한 `/api/health`, `/api/config`,
+모델 목록, 갤러리, CORS preflight가 모두 `200`이었고 콘솔 오류는 없었습니다.
+연결 오류 배너의 **백엔드 주소** 입력으로 잘못된 주소 → 새 터널 주소로 전환하는
+동작도 확인했습니다.
 
 ![GitHub Pages에서 로컬 GPU로 생성한 이미지](docs/pages_image_result.jpg)
 
@@ -136,8 +163,10 @@ HTTPS 페이지에서 그대로 동작합니다. 픽셀 페이지도 Pages UI에
 
 > HTTPS Pages에서 `http://127.0.0.1`로 접속하는 것은 루프백 예외로 허용되지만,
 > 브라우저 버전/보안 정책에 따라 차단될 수 있습니다. 연결이 되지 않으면 최신
-> Chrome/Edge에서 로컬 네트워크 권한을 허용하고, 그래도 안 되면 Cloudflare Tunnel
-> 같은 HTTPS 터널로 백엔지를 노출한 뒤 `.env.pages`의 주소를 바꿔 다시 빌드하세요.
+> Chrome/Edge에서 로컬 네트워크 권한을 허용하거나, `share_tunnel.bat`으로 HTTPS
+> 터널을 열어 사용하세요. LAN의 평문 `http://192.168.0.3:8765`는 HTTPS Pages에
+> 혼합 콘텐츠로 차단될 수 있으므로, 같은 LAN에서는 다른 PC에서 백엔드 주소를
+> 직접 여는 편이 확실합니다.
 
 ---
 

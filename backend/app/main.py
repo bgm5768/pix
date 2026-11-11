@@ -84,7 +84,11 @@ async def lifespan(app: FastAPI):
             return
         await asyncio.sleep(1.8)
         try:
-            webbrowser.open(f"http://{settings.app.host}:{settings.app.port}")
+            # 0.0.0.0 is a bind address, not a browsable host.
+            host = settings.app.host
+            if host in {"0.0.0.0", "::", ""}:
+                host = "127.0.0.1"
+            webbrowser.open(f"http://{host}:{settings.app.port}")
         except Exception:
             logger.debug("Could not open the browser automatically", exc_info=True)
 

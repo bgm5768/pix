@@ -13,7 +13,7 @@ echo ==========================================
 echo.
 
 rem --- Already running? -------------------------------------------------
-netstat -ano | findstr "127.0.0.1:8765" | findstr "LISTENING" >nul 2>&1
+netstat -ano | findstr ":8765" | findstr "LISTENING" >nul 2>&1
 if not errorlevel 1 (
   echo [INFO] PixelForge backend is already running.
   echo        Opening http://127.0.0.1:8765
@@ -99,10 +99,13 @@ if not exist "%ROOT%\frontend\dist\index.html" (
 )
 
 echo [4/4] Starting backend: http://127.0.0.1:8765
+for /f "delims=" %%i in ('powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue ^| Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } ^| ForEach-Object { $_.IPAddress }" 2^>nul') do echo        LAN:   http://%%i:8765
+netsh advfirewall firewall show rule name="PixelForge Backend (TCP 8765)" >nul 2>&1
+if errorlevel 1 echo        Other PC cannot connect? Run scripts\allow_lan_firewall.bat as admin.
 echo        The browser will open automatically. Press Ctrl+C to stop.
 echo.
 pushd "%ROOT%\backend"
-"%PY%" -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+"%PY%" -m uvicorn app.main:app --host 0.0.0.0 --port 8765
 set "EXITCODE=%errorlevel%"
 popd
 

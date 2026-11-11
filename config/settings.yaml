@@ -5,7 +5,9 @@
 app:
   name: PixelForge Local
   version: 1.0.0
-  host: 127.0.0.1
+  # 0.0.0.0 binds to all interfaces so other PCs on the same LAN can connect.
+  # Use 127.0.0.1 if you only ever want this PC to reach the backend.
+  host: 0.0.0.0
   port: 8765
   open_browser: true
   # GitHub Pages(HTTPS)에서 이 PC의 로컬 백엔드로 접속할 수 있게 허용합니다.

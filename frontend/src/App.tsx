@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "./api/client";
 import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
+import { BackendOverride } from "./components/BackendOverride";
 import { PaletteIcon, SparkIcon } from "./components/Icons";
 import { PromptPanel } from "./components/PromptPanel";
 import { ResultPanel } from "./components/ResultPanel";
@@ -678,6 +679,7 @@ export default function App() {
                 : "ComfyUI 연결을 기다리는 중입니다."}
             </strong>
             <span>{connectionDetail}</span>
+            {backendDown && <BackendOverride />}
           </div>
         </div>
       )}
