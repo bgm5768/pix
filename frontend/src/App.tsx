@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
+import { ComicCuts } from "./components/ComicCuts";
 import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
 import { BackendOverride } from "./components/BackendOverride";
 import { JobList } from "./components/JobList";
 import { ImageIcon, PaletteIcon, SparkIcon, StudioIcon } from "./components/Icons";
+import { ModelPicker } from "./components/ModelPicker";
 import { PromptPanel } from "./components/PromptPanel";
 import { ReferencePanel } from "./components/ReferencePanel";
 import { ResourceBar } from "./components/ResourceBar";
@@ -24,6 +26,7 @@ import type {
   JobStatus,
   JobView,
   ModelDownloadItem,
+  ModelFile,
   OutputItem,
   PageKind,
   AssetMode,
@@ -866,54 +869,20 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [notices.reference]);
 
-  const submit = useCallback(
-    async (overrideSeed?: number) => {
+  const buildPayload = useCallback(
+    async (promptText: string, seedOverride: number | null = null): Promise<GenerateRequest> => {
       const targetPage = page;
       const isImage = targetPage === "image";
       const isReference = targetPage === "reference";
       const isNative = isImage || isReference;
-      if (generating[targetPage]) return;
-      const trimmed = (
-        isImage ? imagePrompt : isReference ? referencePrompt : prompt
-      ).trim();
-      if (!trimmed) {
-        setJobs((current) => ({ ...current, [targetPage]: null }));
-        setJobIds((current) => ({ ...current, [targetPage]: null }));
-        setErrors((current) => ({ ...current, [targetPage]: "프롬프트를 입력해 주세요." }));
-        return;
-      }
-      if (isReference && referenceItems.length === 0) {
-        setErrors((current) => ({
-          ...current,
-          [targetPage]: "참고 이미지를 1장 이상 선택해 주세요.",
-        }));
-        return;
-      }
-      if (isReference && settings.identityEngine !== "none") {
-        const identityAsset = settings.identityImage;
-        const known = referenceItems.some((item) => item.id === identityAsset);
-        if (!identityAsset || !known) {
-          setErrors((current) => ({
-            ...current,
-            [targetPage]: "얼굴을 고정할 참고 이미지를 선택해 주세요.",
-          }));
-          return;
-        }
-      }
+      const trimmed = promptText.trim();
 
-      let seed: number | null = overrideSeed ?? null;
+      let seed: number | null = seedOverride;
       if (seed === null && settings.seedInput.trim() !== "") {
         const parsed = Number(settings.seedInput);
-        if (!Number.isInteger(parsed) || parsed < 0 || parsed > 4_294_967_295) {
-          setJobs((current) => ({ ...current, [targetPage]: null }));
-          setJobIds((current) => ({ ...current, [targetPage]: null }));
-          setErrors((current) => ({
-            ...current,
-            [targetPage]: "Seed는 0~4294967295 사이의 정수여야 합니다.",
-          }));
-          return;
+        if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 4_294_967_295) {
+          seed = parsed;
         }
-        seed = parsed;
       }
 
       let promptForGeneration = trimmed;
@@ -943,7 +912,7 @@ export default function App() {
         }
       }
 
-      const payload: GenerateRequest = {
+      return {
         prompt: promptForGeneration,
         negative_prompt: (
           isImage ? imageNegative : isReference ? referenceNegative : negative
@@ -992,6 +961,68 @@ export default function App() {
         identity_noise: settings.identityNoise,
         identity_include_style: settings.identityIncludeStyle,
       };
+    },
+    [
+      page,
+      settings,
+      referenceItems,
+      nativeTranslation,
+      imageNegative,
+      referenceNegative,
+      negative,
+    ],
+  );
+
+  const submit = useCallback(
+    async (overrideSeed?: number) => {
+      const targetPage = page;
+      const isImage = targetPage === "image";
+      const isReference = targetPage === "reference";
+      if (generating[targetPage]) return;
+      const trimmed = (
+        isImage ? imagePrompt : isReference ? referencePrompt : prompt
+      ).trim();
+      if (!trimmed) {
+        setJobs((current) => ({ ...current, [targetPage]: null }));
+        setJobIds((current) => ({ ...current, [targetPage]: null }));
+        setErrors((current) => ({ ...current, [targetPage]: "프롬프트를 입력해 주세요." }));
+        return;
+      }
+      if (isReference && referenceItems.length === 0) {
+        setErrors((current) => ({
+          ...current,
+          [targetPage]: "참고 이미지를 1장 이상 선택해 주세요.",
+        }));
+        return;
+      }
+      if (isReference && settings.identityEngine !== "none") {
+        const identityAsset = settings.identityImage;
+        const known = referenceItems.some((item) => item.id === identityAsset);
+        if (!identityAsset || !known) {
+          setErrors((current) => ({
+            ...current,
+            [targetPage]: "얼굴을 고정할 참고 이미지를 선택해 주세요.",
+          }));
+          return;
+        }
+      }
+
+      let seed: number | null = overrideSeed ?? null;
+      if (seed === null && settings.seedInput.trim() !== "") {
+        const parsed = Number(settings.seedInput);
+        if (!Number.isInteger(parsed) || parsed < 0 || parsed > 4_294_967_295) {
+          setJobs((current) => ({ ...current, [targetPage]: null }));
+          setJobIds((current) => ({ ...current, [targetPage]: null }));
+          setErrors((current) => ({
+            ...current,
+            [targetPage]: "Seed는 0~4294967295 사이의 정수여야 합니다.",
+          }));
+          return;
+        }
+        seed = parsed;
+      }
+
+      const payload = await buildPayload(trimmed, seed);
 
       setErrors((current) => ({ ...current, [targetPage]: null }));
       setNotices((current) => ({ ...current, [targetPage]: null }));
@@ -1027,8 +1058,8 @@ export default function App() {
       referenceNegative,
       settings,
       generating,
-      nativeTranslation,
       referenceItems,
+      buildPayload,
     ],
   );
 
@@ -1176,6 +1207,25 @@ export default function App() {
     const timer = window.setInterval(() => void loadStudioStatus(), 6000);
     return () => window.clearInterval(timer);
   }, [studioOpen, loadStudioStatus]);
+
+  const handleSelectModel = useCallback(
+    (model: ModelFile) => {
+      const isReference = page === "reference";
+      setSettings((current) => ({
+        ...current,
+        ...(isReference
+          ? { referenceCheckpoint: model.name }
+          : { imageCheckpoint: model.name }),
+        steps: model.recommended_steps ?? current.steps,
+        cfg: model.recommended_cfg ?? current.cfg,
+      }));
+      setNotices((current) => ({
+        ...current,
+        [page]: `${model.name} 로 바꿨습니다.`,
+      }));
+    },
+    [page],
+  );
 
   const handleAddReference = useCallback(
     (asset: ReferenceAsset) => {
@@ -1628,6 +1678,25 @@ export default function App() {
             onSelect={handleSelectJob}
             onRefresh={() => void refreshJobHistory()}
           />
+          {(page === "image" || page === "reference") && (
+            <ModelPicker
+              models={health?.models.checkpoints ?? []}
+              selected={
+                page === "reference"
+                  ? (settings.referenceCheckpoint ?? null)
+                  : (settings.imageCheckpoint ?? null)
+              }
+              onSelect={handleSelectModel}
+              loading={!health}
+            />
+          )}
+          {page === "reference" && (
+            <ComicCuts
+              buildPayload={(prompt) => buildPayload(prompt)}
+              onFinished={() => void refreshOutputs("reference")}
+              disabled={generating.reference || referenceItems.length === 0}
+            />
+          )}
           <SettingsPanel
             kind={page}
             settings={settings}

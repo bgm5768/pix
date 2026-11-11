@@ -3769,6 +3769,230 @@ input[type="range"]::-moz-range-thumb {
   font-size: 8.5px;
 }
 
+.model-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.model-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.model-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 11px;
+  color: var(--text-soft);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.model-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 200, 87, 0.45);
+}
+
+.model-card.is-active {
+  color: var(--text);
+  border-color: rgba(255, 200, 87, 0.6);
+  background: rgba(255, 200, 87, 0.08);
+  box-shadow: 0 0 18px rgba(255, 200, 87, 0.1);
+}
+
+.model-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-card-top strong {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-card-check {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: #06121f;
+  background: var(--warn);
+  border-radius: 50%;
+}
+
+.model-card-nsfw {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  color: var(--magenta);
+  font-family: var(--mono);
+  font-size: 8px;
+  border: 1px solid rgba(255, 106, 213, 0.4);
+  border-radius: 4px;
+}
+
+.model-card-desc {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.model-card-tag {
+  padding: 1px 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+}
+
+.model-card-tag.is-note {
+  color: var(--warn);
+  background: rgba(255, 200, 87, 0.1);
+}
+
+.model-card-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.model-card-features span {
+  padding: 1px 5px;
+  color: var(--accent-2);
+  font-size: 8.5px;
+  background: rgba(89, 227, 255, 0.08);
+  border-radius: 4px;
+}
+
+.model-card-use {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: var(--warn);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.model-card:hover .model-card-use {
+  opacity: 1;
+}
+
+.comic-cuts {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.comic-cuts-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comic-cuts-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.comic-cut {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.comic-cut.is-done {
+  border-color: rgba(125, 255, 178, 0.3);
+}
+
+.comic-cut.is-error {
+  border-color: rgba(255, 107, 122, 0.4);
+}
+
+.comic-cut img,
+.comic-cut-placeholder {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: var(--panel-deep);
+  border-radius: 7px;
+}
+
+.comic-cut-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted-deep);
+}
+
+.comic-cut figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comic-cut-index {
+  color: var(--magenta);
+  font-family: var(--mono);
+  font-size: 8.5px;
+}
+
+.comic-cut-prompt {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 10px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comic-cut-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8.5px;
+}
+
 .studio-workspace {
   grid-template-columns: minmax(0, 1fr);
 }

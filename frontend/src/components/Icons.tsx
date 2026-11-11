@@ -192,3 +192,11 @@ export function StudioIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 4l14 8-14 8V4z" />
+    </svg>
+  );
+}

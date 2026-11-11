@@ -821,6 +821,7 @@ class JobManager:
             job.prompt_used = prompt
             job.negative_used = negative
             job.prompt_plan = None
+            self._apply_model_prompt_rules(job)
             return
         plan = await build_prompt_plan_async(
             job.request.prompt,
@@ -885,6 +886,22 @@ class JobManager:
                     detail=capabilities.install_hint or None,
                 )
             await self._check_identity_models(job, capabilities)
+
+    @staticmethod
+    def _apply_model_prompt_rules(job: Job) -> None:
+        """Model specific prompt fixes (Pony needs Danbooru score tags)."""
+        checkpoint = (job.checkpoint or "").lower()
+        prompt = job.prompt_used or ""
+        if "pony" not in checkpoint:
+            return
+        if "score_" not in prompt.lower():
+            job.prompt_used = "score_9, score_8_up, score_7_up, " + prompt
+            job.warnings.append(
+                "Pony Diffusion 모델이라 Danbooru score 태그(score_9 등)를 자동으로 붙였습니다."
+            )
+        negative = job.negative_used or ""
+        if "score_1" not in negative.lower():
+            job.negative_used = (negative + ", score_1, score_2, score_3, score_4").strip(", ")
 
     async def _check_identity_models(
         self, job: Job, capabilities: Any
