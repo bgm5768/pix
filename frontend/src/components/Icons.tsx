@@ -182,3 +182,13 @@ export function ImageIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function StudioIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 15l5-4 4 3 3-2 6 5" />
+      <path d="M8 8h.01" />
+    </svg>
+  );
+}

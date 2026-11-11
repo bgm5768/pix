@@ -14,6 +14,7 @@ import type {
   ReferenceAsset,
   ReferenceCapabilities,
   ReferenceSamplesResponse,
+  StudioStatus,
   SystemStatusResponse,
   TranslateResponse,
 } from "../types";
@@ -159,8 +160,12 @@ export const api = {
         ? `/api/references/capabilities?checkpoint=${encodeURIComponent(checkpoint)}`
         : "/api/references/capabilities",
     ),
-  uploadReference: async (file: File): Promise<ReferenceAsset> => {
-    const form = new FormData();
+  getStudioStatus: () => request<StudioStatus>("/api/studio/status"),
+  startStudio: () =>
+    request<StudioStatus>("/api/studio/start", {
+      method: "POST",
+    }),
+  uploadReference: async (file: File): Promise<ReferenceAsset> => {    const form = new FormData();
     form.append("file", file, file.name);
     let response: Response;
     try {

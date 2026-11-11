@@ -3,7 +3,7 @@
 로컬 ComfyUI + SDXL로 텍스트 프롬프트에서 **픽셀아트 스프라이트**와 **일반 이미지**를 만드는 Windows 전용 앱입니다.
 외부 이미지 생성 API를 사용하지 않으며, 모든 생성은 이 PC의 GPU에서 실행됩니다.
 
-- **페이지**: 상단의 `픽셀 생성기` / `이미지 생성기` / `이미지to이미지 느낌` 탭으로 전환
+- **페이지**: 상단의 `픽셀 생성기` / `이미지 생성기` / `이미지to이미지 느낌` / `만화 작업실` 탭으로 전환
 - **이미지to이미지(레퍼런스)**: 참고 이미지를 업로드하거나 제공된 샘플 중에서 고르고,
   이미지마다 초점(외형·얼굴·화풍·포즈·구도)과 강도를 지정해 새 이미지에 반영
   (IP-Adapter Plus + CLIP Vision ViT-H, SDXL/NoobAI 계열 체크포인트 호환)
@@ -551,7 +551,31 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 > 얼굴을 못 찾는 사진(뒤모습·심야·손 가림 등)을 주면 생성 중
 > `얼굴을 찾지 못했습니다` 오류가 납니다. 정면 사진으로 교체해 주세요.
 
-### 4.5 만화 컷 크기
+### 4.5 만화 작업실 (nk)
+
+4번째 탭 **만화 작업실**은 nk 만화 제작기의 작업실을 그대로 불러온다.
+(새 만화 · 이어서 만들기 · 컷 다시 그리기 · 후보 고르기 · 대사/말풍선 · 쪽 짜기 · PDF 조립)
+
+- 백엔드가 `nk ep web --port 8766 --no-open --no-runner` 로 작업실 서버를 자동으로 띄우고,
+  `/studio/` 경로로 프록시해 화면을 그대로 보여준다.
+- 같은 ComfyUI(`http://127.0.0.1:8188`)와 공유 모델 폴더를 쓴다.
+  nk 쪽 `presets.yaml` 의 `pixelforge_*` 프리셋으로 LUSTIFY!/NoobAI/Pony 등을 바로 고를 수 있다.
+- nk 의 안전장치(전연령 전용)는 그대로 적용된다. PixelForge가 그 장치를 건드리지 않는다.
+
+설정(`config/settings.yaml`):
+
+```yaml
+studio:
+  kit_path: 'C:\nk'   # nk.py 가 있는 폴더
+  port: 8766          # 픽셀포지(8765)와 겹치지 않게
+  python: ''          # 비우면 PATH 의 python (numpy/cv2/PIL/pyyaml 필요)
+  allow_remote: false # true 면 터널(외부)로도 작업실을 연다 (기본은 이 PC 전용)
+```
+
+> 작업실은 파일을 만들고 명령을 실행하므로, 기본적으로 **이 PC에서만** 열린다
+> (요청에 `X-Forwarded-For` 가 붙으면 외부 요청으로 보고 막는다).
+
+### 4.6 만화 컷 크기
 
 이미지 페이지와 레퍼런스 페이지의 설정 패널에는 **컷 모양** 선택이 있습니다.
 
@@ -581,7 +605,7 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 - 정보는 `outputs/metadata/<job_id>.json`에 저장된 값을 그대로 읽어 만들기 때문에
   서버를 다시 켜도 그대로 남아 있습니다.
 
-### 4.6 다운로드 · 삭제
+### 4.7 다운로드 · 삭제
 - **다운로드**: 결과 패널의 **PNG 저장**, 또는 갤러리 카드의 다운로드 아이콘을 누릅니다.
   픽셀은 실제 크기 PNG(`pixelforge_<job>_<size>px.png`), 이미지는 선택한 해상도의
   SDXL 원본 PNG(`pixelforge_<job>_image_<size>px.png`)로 저장됩니다.
@@ -700,6 +724,9 @@ outputs/
 | GET | `/api/references/samples` | 제공된 참고 샘플 목록 |
 | POST | `/api/references/upload` | 참고 이미지 업로드 (multipart `file`) → 분석 결과 포함 |
 | GET | `/api/references/capabilities?checkpoint=...` | IP-Adapter/얼굴 고정 설치·호환 상태와 안내 문구 |
+| GET | `/api/studio/status` | nk 만화 작업실 설치·실행 상태 |
+| POST | `/api/studio/start` | nk 만화 작업실 서버 기동 |
+| GET/POST | `/studio/...` | nk 작업실 화면·API 프록시 (작업실이 그대로 동작) |
 | GET | `/api/system` | GPU 사용률/VRAM/온도/전력, RAM, 대기열 상태 (2.5초 폴링용) |
 | GET | `/api/health` | 백엔드/ComfyUI/GPU/RAM/모델/큐 상태 |
 | GET | `/api/models/catalog` | 다운로드 가능한 모델과 설치/진행 상태 |
@@ -1115,6 +1142,7 @@ pix/
 │        ├─ model_downloads.py     # 모델 다운로드/이어받기/취소
 │        ├─ outputs.py             # 픽셀/이미지/레퍼런스 저장, 출력 목록, 다운로드/삭제
 │        ├─ references.py          # 참고 이미지 업로드·분석, 샘플 목록, IP-Adapter 상태 확인
+│        ├─ studio.py              # nk 만화 작업실(nk ep web) 기동 + /studio 프록시
 │        └─ errors.py              # 사용자 친화적 오류 타입
 ├─ config/
 │  ├─ settings.yaml                # 실행 설정 (translation 포함)

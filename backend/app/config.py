@@ -152,6 +152,21 @@ class JobsConfig(BaseModel):
     history_limit: int = 50
 
 
+class StudioConfig(BaseModel):
+    """nk comic studio (nk ep web) integration."""
+
+    # Folder that holds nk.py (the comic maker kit).
+    kit_path: str = r"C:\nk"
+    # Port the studio server listens on. 8765 is PixelForge's own port, so the
+    # studio gets its own one and is reached through /studio/.
+    port: int = 8766
+    # Python that can run nk (needs numpy/cv2/PIL/pyyaml).
+    python: str = ""
+    # The studio is a local-only app. Keep it that way unless the user really
+    # wants to expose it through the shared tunnel.
+    allow_remote: bool = False
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     comfyui: ComfyConfig = Field(default_factory=ComfyConfig)
@@ -159,6 +174,7 @@ class Settings(BaseModel):
     translation: TranslationConfig = Field(default_factory=TranslationConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
+    studio: StudioConfig = Field(default_factory=StudioConfig)
 
     def resolve(self, value: str | Path) -> Path:
         path = Path(value).expanduser()

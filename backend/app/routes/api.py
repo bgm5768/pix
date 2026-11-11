@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, File, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.config import Settings
 from app.schemas.models import (
@@ -43,9 +43,11 @@ from app.services.references import (
     list_sample_assets,
     save_reference_upload,
 )
+from app.services.studio import StudioError, StudioService
 from app.services.system_monitor import SystemMonitor
 
 router = APIRouter(prefix="/api", tags=["pixelforge"])
+studio_router = APIRouter(prefix="/studio", tags=["studio"])
 
 
 def _settings(request: Request) -> Settings:
@@ -66,6 +68,77 @@ def _downloads(request: Request) -> ModelDownloadManager:
 
 def _monitor(request: Request) -> SystemMonitor:
     return request.app.state.monitor
+
+
+def _studio(request: Request) -> StudioService:
+    return request.app.state.studio
+
+
+def _studio_request_allowed(request: Request) -> bool:
+    """The nk studio is a local-only app, so keep it off the shared tunnel."""
+    settings = _settings(request)
+    if settings.studio.allow_remote:
+        return True
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # Reached through a reverse proxy / tunnel - not a local browser.
+        return False
+    client = request.client
+    return bool(client and client.host in {"127.0.0.1", "::1", "localhost"})
+
+
+@router.get("/studio/status")
+async def studio_status(request: Request) -> dict:
+    studio = _studio(request)
+    status = studio.status()
+    status["allowed"] = _studio_request_allowed(request)
+    status["remote_blocked"] = not settings_allow_remote(request) and not status["allowed"]
+    return status
+
+
+def settings_allow_remote(request: Request) -> bool:
+    return bool(_settings(request).studio.allow_remote)
+
+
+@router.post("/studio/start")
+async def studio_start(request: Request) -> dict:
+    if not _studio_request_allowed(request):
+        raise StudioError(
+            "nk 작업실은 이 PC에서만 열 수 있습니다. "
+            "config/settings.yaml 의 studio.allow_remote 를 true 로 바꾸면 원격에서도 열 수 있습니다."
+        )
+    studio = _studio(request)
+    await studio.ensure_running()
+    return studio.status()
+
+
+@studio_router.api_route("/", methods=["GET", "POST", "HEAD"])
+async def studio_root(request: Request) -> Response:
+    return await studio_proxy("", request)
+
+
+@studio_router.api_route("/{path:path}", methods=["GET", "POST", "HEAD"])
+async def studio_proxy(path: str, request: Request) -> Response:
+    if not _studio_request_allowed(request):
+        raise StudioError(
+            "nk 작업실은 이 PC에서만 열 수 있습니다. "
+            "config/settings.yaml 의 studio.allow_remote 를 true 로 바꾸면 원격에서도 열 수 있습니다."
+        )
+    body = await request.body()
+    headers = {key: value for key, value in request.headers.items()}
+    status_code, content_type, payload = await _studio(request).proxy(
+        request.method,
+        path,
+        request.url.query,
+        headers,
+        body,
+    )
+    return Response(
+        content=payload,
+        status_code=status_code,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/translate", response_model=TranslateResponse)

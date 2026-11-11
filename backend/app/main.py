@@ -17,12 +17,14 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import PROJECT_ROOT, get_settings
 from app.routes.api import router as api_router
+from app.routes.api import studio_router
 from app.services.comfy_client import ComfyClient
 from app.services.comfy_launcher import ComfyLauncher
 from app.services.errors import PixelForgeError
 from app.services.job_manager import JobManager
 from app.services.model_downloads import ModelDownloadManager
 from app.services.system_monitor import SystemMonitor
+from app.services.studio import StudioService
 from app.services.translator import Translator
 
 logger = logging.getLogger("pixelforge")
@@ -63,6 +65,7 @@ async def lifespan(app: FastAPI):
     jobs = JobManager(settings, comfy, launcher, translator)
     downloads = ModelDownloadManager(settings, comfy)
     monitor = SystemMonitor()
+    studio = StudioService(settings)
 
     app.state.settings = settings
     app.state.comfy = comfy
@@ -71,6 +74,7 @@ async def lifespan(app: FastAPI):
     app.state.jobs = jobs
     app.state.downloads = downloads
     app.state.monitor = monitor
+    app.state.studio = studio
 
     await jobs.start()
     logger.info("PixelForge Local backend starting (ComfyUI: %s)", settings.comfyui.normalized_url)
@@ -110,6 +114,7 @@ async def lifespan(app: FastAPI):
         await jobs.stop()
         await downloads.close()
         await comfy.close()
+        await studio.stop()
         launcher.shutdown()
         logger.info("PixelForge Local backend stopped")
 
@@ -145,6 +150,7 @@ async def private_network_access(request: Request, call_next):
 
 
 app.include_router(api_router)
+app.include_router(studio_router)
 
 outputs_root = PROJECT_ROOT / "outputs"
 outputs_root.mkdir(parents=True, exist_ok=True)
@@ -216,7 +222,7 @@ async def index():
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def spa_fallback(full_path: str):
-    if full_path.startswith(("api/", "files/", "docs", "redoc", "openapi.json")):
+    if full_path.startswith(("api/", "files/", "studio/", "docs", "redoc", "openapi.json")):
         raise HTTPException(status_code=404, detail="Not found")
     dist = frontend_dist.resolve()
     candidate = (frontend_dist / full_path).resolve()

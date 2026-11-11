@@ -358,7 +358,7 @@ select:focus-visible {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -404,6 +404,10 @@ select:focus-visible {
   background: linear-gradient(120deg, rgba(255, 106, 213, 0.11), transparent 48%);
 }
 
+.mode-tab:nth-child(4)::before {
+  background: linear-gradient(120deg, rgba(255, 200, 87, 0.12), transparent 48%);
+}
+
 .mode-tab:hover {
   transform: translateY(-1px);
   border-color: rgba(89, 227, 255, 0.28);
@@ -428,6 +432,13 @@ select:focus-visible {
   box-shadow:
     0 12px 34px rgba(0, 0, 0, 0.2),
     0 0 0 1px rgba(255, 106, 213, 0.08) inset;
+}
+
+.mode-tab:nth-child(4).active {
+  border-color: rgba(255, 200, 87, 0.45);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 200, 87, 0.08) inset;
 }
 
 .mode-tab.active::before {
@@ -471,6 +482,13 @@ select:focus-visible {
   border-color: rgba(255, 106, 213, 0.4);
   background: rgba(255, 106, 213, 0.08);
   box-shadow: 0 0 20px rgba(255, 106, 213, 0.12);
+}
+
+.mode-tab:nth-child(4).active .mode-tab-icon {
+  color: var(--warn);
+  border-color: rgba(255, 200, 87, 0.4);
+  background: rgba(255, 200, 87, 0.08);
+  box-shadow: 0 0 20px rgba(255, 200, 87, 0.12);
 }
 
 .mode-tab-copy {
@@ -517,6 +535,10 @@ select:focus-visible {
 
 .mode-tab:nth-child(3).active .mode-tab-index {
   color: var(--magenta);
+}
+
+.mode-tab:nth-child(4).active .mode-tab-index {
+  color: var(--warn);
 }
 
 /* ------------------------------------------------------------------ */
@@ -3745,6 +3767,154 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted-deep);
   font-family: var(--mono);
   font-size: 8.5px;
+}
+
+.studio-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.studio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 620px;
+}
+
+.studio-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.studio-state.ok {
+  color: var(--accent);
+  border-color: rgba(125, 255, 178, 0.4);
+  background: rgba(125, 255, 178, 0.07);
+}
+
+.studio-state.idle {
+  color: var(--warn);
+  border-color: rgba(255, 200, 87, 0.4);
+  background: rgba(255, 200, 87, 0.07);
+}
+
+.studio-state.bad {
+  color: var(--danger);
+  border-color: rgba(255, 107, 122, 0.4);
+  background: rgba(255, 107, 122, 0.07);
+}
+
+.studio-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 11px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.studio-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--accent-2);
+}
+
+.studio-note code {
+  padding: 1px 4px;
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.studio-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--danger);
+  font-size: 11px;
+  line-height: 1.5;
+  background: rgba(255, 107, 122, 0.07);
+  border: 1px solid rgba(255, 107, 122, 0.28);
+  border-radius: 10px;
+}
+
+.studio-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+.studio-empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.studio-empty code {
+  padding: 1px 5px;
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.studio-frame-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 540px;
+  overflow: hidden;
+  background: var(--panel-deep);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.studio-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 540px;
+  border: 0;
+  background: #16181b;
+}
+
+.studio-frame-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11.5px;
+  background: rgba(10, 16, 27, 0.8);
 }
 
 .reference-explainer {
