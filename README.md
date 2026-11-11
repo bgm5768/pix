@@ -125,6 +125,15 @@ Pages 빌드는 `.env.pages`의 `VITE_API_BASE=http://127.0.0.1:8765`를 사용�
 백엔드는 `config/settings.yaml`의 `app.cors_origins`에 등록된
 `https://bgm5768.github.io`를 허용하고, Private Network Access 응답 헤더를 함께 보냅니다.
 
+![GitHub Pages에서 로컬 GPU로 생성한 이미지](docs/pages_image_result.jpg)
+
+**배포 검증 (2026-11-11)**: `https://bgm5768.github.io/pix/`에서 LUSTIFY! v2.0 +
+1024×1024 + 28 steps로 이미지를 생성했습니다. 작업 ID `660e2451930d`, **11.6초**,
+원본 1,580,103 bytes, 다운로드 `200 image/png`를 확인했습니다.
+Pages UI → CORS preflight `200` → 로컬 백엔드/ComfyUI → RTX 3080 Ti 경로가
+HTTPS 페이지에서 그대로 동작합니다. 픽셀 페이지도 Pages UI에서 모델 목록/갤러리가
+정상 로드되고 콘솔 오류가 없음을 확인했습니다.
+
 > HTTPS Pages에서 `http://127.0.0.1`로 접속하는 것은 루프백 예외로 허용되지만,
 > 브라우저 버전/보안 정책에 따라 차단될 수 있습니다. 연결이 되지 않으면 최신
 > Chrome/Edge에서 로컬 네트워크 권한을 허용하고, 그래도 안 되면 Cloudflare Tunnel
@@ -640,6 +649,7 @@ pix/
 │     └─ styles/global.css
 ├─ docs/
 │  ├─ quality_report_2026-11-10.md # 필수 15개 결과/검증 리포트
+│  ├─ pages_image_result.jpg      # GitHub Pages + 로컬 GPU 생성 검증 화면
 │  └─ demo_64.png, ui_result.png
 ├─ outputs/
 │  ├─ originals/                   # AI 원본
