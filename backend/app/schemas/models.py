@@ -168,6 +168,14 @@ class ModelFile(BaseModel):
     size_bytes: int = 0
     compatible: bool = True
     category: ModelCategory = "image"
+    description: str = ""
+    features: list[str] = Field(default_factory=list)
+    trigger: str | None = None
+    prompt_tip: str | None = None
+    recommended_strength: float | None = None
+    base_model: str = ""
+    nsfw: bool = False
+    vram_hint: str = ""
 
 
 class ModelStatus(BaseModel):
@@ -186,8 +194,13 @@ class ModelDownloadItem(BaseModel):
     kind: Literal["checkpoint", "lora"]
     filename: str
     description: str = ""
+    features: list[str] = Field(default_factory=list)
     trigger: str | None = None
+    prompt_tip: str | None = None
     recommended_strength: float | None = None
+    base_model: str = ""
+    nsfw: bool = False
+    vram_hint: str = ""
     size_bytes: int = 0
     status: Literal["not_installed", "downloading", "installed", "error", "cancelled"] = "not_installed"
     progress: float = 0.0

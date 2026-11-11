@@ -158,6 +158,14 @@ export interface ModelFile {
   size_bytes: number;
   compatible: boolean;
   category: ModelCategory;
+  description: string;
+  features: string[];
+  trigger: string | null;
+  prompt_tip: string | null;
+  recommended_strength: number | null;
+  base_model: string;
+  nsfw: boolean;
+  vram_hint: string;
 }
 
 export interface ModelDownloadItem {
@@ -166,8 +174,13 @@ export interface ModelDownloadItem {
   kind: "checkpoint" | "lora";
   filename: string;
   description: string;
+  features: string[];
   trigger: string | null;
+  prompt_tip: string | null;
   recommended_strength: number | null;
+  base_model: string;
+  nsfw: boolean;
+  vram_hint: string;
   size_bytes: number;
   status: "not_installed" | "downloading" | "installed" | "error" | "cancelled";
   progress: number;

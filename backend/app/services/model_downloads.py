@@ -14,6 +14,7 @@ from app.schemas.models import ModelCatalogResponse, ModelDownloadItem
 from app.services.comfy_client import ComfyClient
 from app.services.errors import ModelDownloadError
 from app.services.model_catalog import resolve_model_path
+from app.services.model_notes import lora_triggers, note_for
 
 logger = logging.getLogger("pixelforge.downloads")
 
@@ -28,13 +29,11 @@ class CatalogEntry:
     filename: str
     url: str
     size_bytes: int
-    description: str = ""
-    trigger: str | None = None
-    recommended_strength: float | None = None
 
 
-# Curated, licence-safe SDXL downloads.  Keep this list small and explicit so
-# the UI never points at an arbitrary/unverified URL.
+# Curated SDXL downloads.  Keep this list explicit so the UI never points at
+# an arbitrary/unverified URL.  Descriptions, features and trigger words live
+# in ``model_notes.py`` so installed files get the same metadata as downloads.
 CATALOG: tuple[CatalogEntry, ...] = (
     CatalogEntry(
         id="pixelartdiffusionxl-spriteshaper",
@@ -47,7 +46,6 @@ CATALOG: tuple[CatalogEntry, ...] = (
             "SDXL1.0_PixelArtDiffusionXL_SpriteShaper.safetensors?download=true"
         ),
         size_bytes=6_938_040_682,
-        description="SDXL 기반 픽셀아트/스프라이트 특화 체크포인트",
     ),
     CatalogEntry(
         id="lustify-v2",
@@ -59,10 +57,50 @@ CATALOG: tuple[CatalogEntry, ...] = (
             "lustifySDXLNSFWSFW_v20.safetensors?download=true"
         ),
         size_bytes=6_938_043_264,
-        description=(
-            "무검열 포토리얼 SDXL 체크포인트 · NSFW/SFW · Civitai 573152 v2.0 · "
-            "상업적 이미지 생성 허용(크레딧 필요)"
+    ),
+    CatalogEntry(
+        id="pony-diffusion-v6-xl",
+        label="Pony Diffusion V6 XL",
+        kind="checkpoint",
+        filename="ponyDiffusionV6XL_v6StartWithThisOne.safetensors",
+        url=(
+            "https://huggingface.co/LyliaEngine/Pony_Diffusion_V6_XL/resolve/main/"
+            "ponyDiffusionV6XL_v6StartWithThisOne.safetensors?download=true"
         ),
+        size_bytes=6_938_041_050,
+    ),
+    CatalogEntry(
+        id="cyberrealistic-xl-v10",
+        label="CyberRealistic XL v10.0",
+        kind="checkpoint",
+        filename="CyberRealisticXLPlay_V10.0_FP16.safetensors",
+        url=(
+            "https://huggingface.co/cyberdelia/CyberRealisticXL/resolve/main/"
+            "CyberRealisticXLPlay_V10.0_FP16.safetensors?download=true"
+        ),
+        size_bytes=6_938_041_288,
+    ),
+    CatalogEntry(
+        id="epicrealism-xl-v7",
+        label="epiCRealism XL v7",
+        kind="checkpoint",
+        filename="epicrealismXL_v7FinalDestination.safetensors",
+        url=(
+            "https://huggingface.co/misri/epicrealismXL_v7FinalDestination/resolve/main/"
+            "epicrealismXL_v7FinalDestination.safetensors?download=true"
+        ),
+        size_bytes=6_939_220_540,
+    ),
+    CatalogEntry(
+        id="realvisxl-v5",
+        label="RealVisXL V5.0",
+        kind="checkpoint",
+        filename="RealVisXL_V5.0_fp16.safetensors",
+        url=(
+            "https://huggingface.co/SG161222/RealVisXL_V5.0/resolve/main/"
+            "RealVisXL_V5.0_fp16.safetensors?download=true"
+        ),
+        size_bytes=6_938_065_488,
     ),
     CatalogEntry(
         id="pixel-art-redmond-lite64",
@@ -74,8 +112,6 @@ CATALOG: tuple[CatalogEntry, ...] = (
             "PixelArtRedmond-Lite64.safetensors?download=true"
         ),
         size_bytes=170_540_052,
-        description="픽셀아트 전용 LoRA · SDXL 1.0 기반",
-        recommended_strength=0.8,
     ),
     CatalogEntry(
         id="pixel-art-sdxl-dora-v09",
@@ -87,8 +123,6 @@ CATALOG: tuple[CatalogEntry, ...] = (
             "pixel-art-sdxl-dora-v0-9.safetensors?download=true"
         ),
         size_bytes=374_593_544,
-        description="DoRA 방식 픽셀아트 LoRA · 강한 스타일화",
-        recommended_strength=0.85,
     ),
     CatalogEntry(
         id="pixel-art-lora-sdxl",
@@ -100,8 +134,6 @@ CATALOG: tuple[CatalogEntry, ...] = (
             "pytorch_lora_weights.safetensors?download=true"
         ),
         size_bytes=185_963_768,
-        description="가벼운 범용 픽셀아트 LoRA · Apache-2.0",
-        recommended_strength=0.7,
     ),
     CatalogEntry(
         id="sexy-slider-sdxl",
@@ -113,9 +145,63 @@ CATALOG: tuple[CatalogEntry, ...] = (
             "sexy.safetensors?download=true"
         ),
         size_bytes=8_789_076,
-        description="NSFW 강도 슬라이더 LoRA · MIT · SDXL 1.0 · 트리거 'sexy'",
-        trigger="sexy",
-        recommended_strength=1.2,
+    ),
+    CatalogEntry(
+        id="ntc-extremely-detailed",
+        label="NTC Slider · extremely detailed",
+        kind="lora",
+        filename="extremely detailed.safetensors",
+        url=(
+            "https://huggingface.co/ntc-ai/SDXL-LoRA-slider.extremely-detailed/"
+            "resolve/main/extremely%20detailed.safetensors?download=true"
+        ),
+        size_bytes=8_789_076,
+    ),
+    CatalogEntry(
+        id="ntc-raw",
+        label="NTC Slider · raw",
+        kind="lora",
+        filename="raw.safetensors",
+        url=(
+            "https://huggingface.co/ntc-ai/SDXL-LoRA-slider.raw/resolve/main/"
+            "raw.safetensors?download=true"
+        ),
+        size_bytes=8_789_076,
+    ),
+    CatalogEntry(
+        id="filmgrain-redmond",
+        label="FilmGrain Redmond",
+        kind="lora",
+        filename="FilmGrainRedmond-FilmGrain-FilmGrainAF.safetensors",
+        url=(
+            "https://huggingface.co/artificialguybr/"
+            "filmgrain-redmond-filmgrain-lora-for-sdxl/resolve/main/"
+            "FilmGrainRedmond-FilmGrain-FilmGrainAF.safetensors?download=true"
+        ),
+        size_bytes=170_540_044,
+    ),
+    CatalogEntry(
+        id="selfie-photography-redmond",
+        label="Selfie Photography Redmond",
+        kind="lora",
+        filename="SelfiePhotographyRedmond.safetensors",
+        url=(
+            "https://huggingface.co/artificialguybr/"
+            "selfiephotographyredmond-selfie-photography-lora-for-sdxl/resolve/main/"
+            "SelfiePhotographyRedmond.safetensors?download=true"
+        ),
+        size_bytes=170_540_044,
+    ),
+    CatalogEntry(
+        id="analog-redmond-v2",
+        label="Analog Redmond V2",
+        kind="lora",
+        filename="AnalogRedmondV2-Analog-AnalogRedmAF.safetensors",
+        url=(
+            "https://huggingface.co/artificialguybr/analogredmond-v2/resolve/main/"
+            "AnalogRedmondV2-Analog-AnalogRedmAF.safetensors?download=true"
+        ),
+        size_bytes=170_540_036,
     ),
 )
 
@@ -124,11 +210,7 @@ CATALOG_BY_ID = {entry.id: entry for entry in CATALOG}
 # LoRA trigger words are injected into image prompts automatically so a
 # selected LoRA actually takes effect even if the user does not know its
 # trigger. Pixel prompts are handled by the prompt engine and stay untouched.
-LORA_TRIGGERS: dict[str, str] = {
-    entry.filename.replace("\\", "/").rsplit("/", 1)[-1].lower(): entry.trigger
-    for entry in CATALOG
-    if entry.kind == "lora" and entry.trigger
-}
+LORA_TRIGGERS: dict[str, str] = lora_triggers()
 
 
 def lora_trigger(filename: str | None) -> str | None:
@@ -196,14 +278,20 @@ class ModelDownloadManager:
                 if entry.size_bytes and downloaded
                 else 0.0
             )
+        note = note_for(entry.filename)
         return ModelDownloadItem(
             id=entry.id,
             label=entry.label,
             kind=entry.kind,
             filename=entry.filename,
-            description=entry.description,
-            trigger=entry.trigger,
-            recommended_strength=entry.recommended_strength,
+            description=note.description if note else "",
+            features=list(note.features) if note else [],
+            trigger=note.trigger if note else None,
+            prompt_tip=note.prompt_tip if note else None,
+            recommended_strength=note.recommended_strength if note else None,
+            base_model=note.base_model if note else "",
+            nsfw=note.nsfw if note else False,
+            vram_hint=note.vram_hint if note else "",
             size_bytes=entry.size_bytes,
             status=status,  # type: ignore[arg-type]
             progress=round(progress, 1),

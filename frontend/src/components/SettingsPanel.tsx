@@ -4,6 +4,7 @@ import type {
   HealthResponse,
   ImageSize,
   ModelDownloadItem,
+  ModelFile,
   OutputSize,
   PageKind,
   PostProcessMode,
@@ -90,6 +91,37 @@ const RESIZE_LABELS: Record<ResizeFilter, string> = {
 };
 
 const PALETTE_OPTIONS = [0, 8, 16, 24, 32];
+
+function ModelInfo({ role, model }: { role: string; model?: ModelFile }) {
+  if (!model) return null;
+  return (
+    <div className="model-info">
+      <div className="model-info-head">
+        <span className="model-info-role">{role}</span>
+        <span className="model-info-title">{model.description || "로컬 모델 · 설명 없음"}</span>
+      </div>
+      <div className="model-tags">
+        {model.nsfw && <span className="model-tag is-nsfw">NSFW</span>}
+        {model.base_model && <span className="model-tag">{model.base_model}</span>}
+        {model.vram_hint && <span className="model-tag">{model.vram_hint}</span>}
+        {model.trigger && <span className="model-tag is-trigger">트리거 · {model.trigger}</span>}
+        {model.prompt_tip && (
+          <span className="model-tag is-tip">권장 프리픽스 · {model.prompt_tip}</span>
+        )}
+        {model.recommended_strength !== null && (
+          <span className="model-tag">권장 ×{model.recommended_strength.toFixed(2)}</span>
+        )}
+      </div>
+      {model.features.length > 0 && (
+        <div className="model-features">
+          {model.features.map((feature) => (
+            <span key={feature}>{feature}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SettingsPanel({
   kind,
@@ -222,6 +254,7 @@ export function SettingsPanel({
               )}
               {checkpointOptions.map((item) => (
                 <option key={item.name} value={item.name}>
+                  {item.nsfw ? "[NSFW] " : ""}
                   {item.name} · {formatBytes(item.size_bytes)}
                 </option>
               ))}
@@ -260,6 +293,7 @@ export function SettingsPanel({
               )}
               {loraOptions.map((item) => (
                 <option key={item.name} value={item.name}>
+                  {item.nsfw ? "[NSFW] " : ""}
                   {item.name} · {formatBytes(item.size_bytes)}
                 </option>
               ))}
@@ -274,6 +308,9 @@ export function SettingsPanel({
             {loraStateLabel}
           </span>
         </div>
+
+        <ModelInfo role="CHECKPOINT" model={checkpointFile} />
+        <ModelInfo role="LORA" model={loraFile} />
 
         <div className="model-catalog">
           <span>
@@ -357,8 +394,35 @@ export function SettingsPanel({
                             ? item.filename
                             : item.downloaded_bytes > 0
                               ? `${formatBytes(item.downloaded_bytes)} 받음 · 이어받기 가능`
-                              : item.description}
+                              : "받기 전"}
                   </div>
+                  {(item.description || item.features.length > 0) && (
+                    <div className="model-download-info">
+                      {item.description && (
+                        <p className="model-download-desc">{item.description}</p>
+                      )}
+                      <div className="model-tags">
+                        {item.nsfw && <span className="model-tag is-nsfw">NSFW</span>}
+                        {item.base_model && <span className="model-tag">{item.base_model}</span>}
+                        {item.vram_hint && <span className="model-tag">{item.vram_hint}</span>}
+                        {item.trigger && (
+                          <span className="model-tag is-trigger">트리거 · {item.trigger}</span>
+                        )}
+                        {item.prompt_tip && (
+                          <span className="model-tag is-tip">
+                            권장 프리픽스 · {item.prompt_tip}
+                          </span>
+                        )}
+                      </div>
+                      {item.features.length > 0 && (
+                        <div className="model-features">
+                          {item.features.map((feature) => (
+                            <span key={feature}>{feature}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

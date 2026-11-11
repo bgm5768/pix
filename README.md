@@ -19,7 +19,9 @@
 - **후보 자동 선택**: 픽셀 페이지에서 기본 4개 시드를 생성해 카드/패널·중복·구도 점수가 가장 높은 후보 선택
 - **모델 선택/다운로드**: 설정 화면에서 체크포인트·LoRA를 드롭다운으로 바로 교체하고,
   SDXL 호환 모델을 내려받아 설치할 수 있음
-- **모델 표시**: 현재 체크포인트/LoRA와 ComfyUI에 등록된 모델 수를 설정 화면에 표시
+- **모델 특징 표시**: 선택한 체크포인트/LoRA의 설명·특징·NSFW 여부·트리거·권장 강도를 표시
+- **무검열 모델 라인업**: LUSTIFY!, Pony Diffusion, CyberRealistic, epiCRealism, RealVisXL과
+  디테일/필름/셀카/NSFW 슬라이더 LoRA 제공
 - **비교**: AI 원본 / 배경 제거 / 자동 크롭 / 최종 도트를 나란히 표시
 - **자동 검증**: 중앙 배치, 피사체 크기, 단일 오브젝트, 카드/패널, 잘림, 알파, 출력 크기, NN 경계 확인
 - **미리보기**: 픽셀은 nearest-neighbor 확대 + 체커보드, 이미지는 원본 비율 유지
@@ -187,18 +189,29 @@ HTTPS 페이지에서 그대로 동작합니다. 픽셀 페이지도 Pages UI에
   이미지 페이지의 기본값은 아래 LUSTIFY! v2.0입니다. `NoobAI-XL` 같은 SDXL 호환 모델도
   이미지 페이지 목록에 표시됩니다.
 
-### 3.2 LUSTIFY! v2.0 + sexy LoRA (이미지 페이지)
+### 3.2 무검열 이미지 모델 라인업 (기본 LUSTIFY! v2.0)
 
 이미지 페이지에는 무검열 포토리얼 SDXL 체크포인트를 기본으로 연결해 두었습니다.
 
-- 체크포인트: `lustifySDXLNSFWSFW_v20.safetensors` (약 6.46GB)
+- 기본 체크포인트: `lustifySDXLNSFWSFW_v20.safetensors` (약 6.46GB)
   - Civitai `LUSTIFY! [SDXL NSFW & SFW checkpoint]` v2.0 (모델 573152 / 버전 708635)
   - Hugging Face 미러: <https://huggingface.co/shootstuff/LUSTIFY-v2.0>
   - SDXL 1.0 기반, 자연어 프롬프트, NSFW/SFW 모두 지원
+- 추가 체크포인트 (설정 → 모델 받기에서 설치):
+  - `ponyDiffusionV6XL_v6StartWithThisOne.safetensors` — Pony Diffusion V6 XL,
+    애니/만화·furry, 권장 프리픽스 `score_9, score_8_up, score_7_up`
+  - `CyberRealisticXLPlay_V10.0_FP16.safetensors` — CyberRealistic XL v10.0,
+    인물 피부·조명 포토리얼
+  - `epicrealismXL_v7FinalDestination.safetensors` — epiCRealism XL v7,
+    시네마틱 실사·자연광
+  - `RealVisXL_V5.0_fp16.safetensors` — RealVisXL V5.0, 범용 포토리얼
 - LoRA: `sexy.safetensors` (약 8.4MB, MIT)
   - <https://huggingface.co/ntc-ai/SDXL-LoRA-slider.sexy>
   - SDXL 1.0 기반 NSFW 강도 슬라이더, 트리거 `sexy`
   - 권장 강도 1.2 (UI에서 0~3 조절 가능)
+- 디테일/스타일 LoRA: `extremely detailed`, `raw`, `FilmGrain Redmond`,
+  `Selfie Photography Redmond`, `Analog Redmond V2` — 각 LoRA의 트리거는 선택 시
+  이미지 프롬프트 끝에 자동 추가됩니다.
 
 > **프롬프트 검열에 대해**: 이 앱과 로컬 ComfyUI에는 프롬프트 키워드 필터가 없습니다.
 > 이미지 페이지의 프롬프트는 가공 없이 그대로 ComfyUI에 전달되며, 결과의 검열 여부는
@@ -234,14 +247,31 @@ HTTPS 페이지에서 그대로 동작합니다. 픽셀 페이지도 Pages UI에
 
 기본 제공 다운로드 목록:
 
-| 종류 | 모델 | 크기 |
-|---|---|---|
-| 체크포인트 | PixelArtDiffusionXL · SpriteShaper | 약 6.46GB |
-| 체크포인트 | LUSTIFY! v2.0 (무검열 이미지 기본) | 약 6.46GB |
-| LoRA | PixelArtRedmond · Lite64 | 약 163MB |
-| LoRA | Pixel Art SDXL DoRA v0.9 | 약 357MB |
-| LoRA | Pixel Art LoRA SDXL | 약 177MB |
-| LoRA | NTC Slider · sexy (이미지용, 트리거 `sexy`) | 약 8.4MB |
+| 종류 | 모델 | 크기 | 특징 |
+|---|---|---|---|
+| 체크포인트 | PixelArtDiffusionXL · SpriteShaper | 약 6.46GB | 픽셀아트/스프라이트 |
+| 체크포인트 | LUSTIFY! v2.0 (무검열 이미지 기본) | 약 6.46GB | 포토리얼 NSFW/SFW |
+| 체크포인트 | Pony Diffusion V6 XL | 약 6.46GB | 애니/만화·furry, NSFW |
+| 체크포인트 | CyberRealistic XL v10.0 | 약 6.46GB | 인물 피부/조명 포토리얼, NSFW |
+| 체크포인트 | epiCRealism XL v7 | 약 6.47GB | 시네마틱 실사, NSFW |
+| 체크포인트 | RealVisXL V5.0 | 약 6.46GB | 범용 포토리얼 |
+| LoRA | PixelArtRedmond · Lite64 | 약 163MB | 픽셀아트 |
+| LoRA | Pixel Art SDXL DoRA v0.9 | 약 357MB | 강한 픽셀 스타일 |
+| LoRA | Pixel Art LoRA SDXL | 약 177MB | 가벼운 픽셀 |
+| LoRA | NTC Slider · sexy | 약 8.4MB | NSFW 강도 슬라이더 |
+| LoRA | NTC Slider · extremely detailed | 약 8.4MB | 디테일/질감 강화 |
+| LoRA | NTC Slider · raw | 약 8.4MB | 사진 원본 질감/대비 |
+| LoRA | FilmGrain Redmond | 약 163MB | 필름 그레인/아날로그 색감 |
+| LoRA | Selfie Photography Redmond | 약 163MB | 셀카/인물 사진 |
+| LoRA | Analog Redmond V2 | 약 163MB | 필름 카메라/빈티지 |
+
+> **PC 권장 사양**: 현재 검증 환경은 RTX 3080 Ti 12GB VRAM / 32GB RAM입니다.
+> 위 SDXL 체크포인트는 512~1024px 생성에 적합하며, 1024px에서는 VRAM 사용량이 높아
+> ComfyUI가 다른 모델을 동시에 올리지 않도록 주의하세요. 12GB 이하에서는 768px가 안전합니다.
+
+> **모델 특징 표시**: 체크포인트/LoRA를 선택하면 설정 패널에 설명, 특징 태그, NSFW 여부,
+> 권장 프리픽스/트리거, 권장 강도가 표시됩니다. 모델 받기 목록에서도 같은 정보를 미리
+> 확인할 수 있습니다.
 
 `config/settings.yaml`의 `generation.checkpoint` / `generation.lora`는 화면에서 아무것도
 선택하지 않았을 때 사용하는 기본값입니다. 이미지 페이지는 `generation.image_checkpoint` /

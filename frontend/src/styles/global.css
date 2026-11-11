@@ -1054,6 +1054,91 @@ select:focus-visible {
   color: var(--muted-deep);
 }
 
+.model-info {
+  margin: 5px 0 0 75px;
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid rgba(89, 227, 255, 0.35);
+  border-radius: 5px;
+}
+
+.model-info-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.model-info-role {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  color: var(--accent-2);
+}
+
+.model-info-title {
+  min-width: 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-soft);
+}
+
+.model-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.model-tag {
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.model-tag.is-nsfw {
+  color: var(--danger);
+  border-color: rgba(255, 107, 122, 0.32);
+  background: rgba(255, 107, 122, 0.06);
+}
+
+.model-tag.is-trigger {
+  color: var(--magenta);
+  border-color: rgba(255, 106, 213, 0.28);
+  background: rgba(255, 106, 213, 0.05);
+}
+
+.model-tag.is-tip {
+  color: var(--warn);
+  border-color: rgba(255, 200, 87, 0.28);
+  background: rgba(255, 200, 87, 0.05);
+}
+
+.model-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.model-features span {
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  line-height: 1.5;
+  color: var(--accent);
+  border: 1px solid rgba(125, 255, 178, 0.2);
+  border-radius: 3px;
+  background: rgba(125, 255, 178, 0.045);
+}
+
 .model-note {
   margin-top: 5px;
 }
@@ -1258,6 +1343,19 @@ select:focus-visible {
   font-family: var(--mono);
   font-size: 8px;
   color: var(--muted-deep);
+}
+
+.model-download-info {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line-soft);
+}
+
+.model-download-desc {
+  margin: 0;
+  font-size: 9.5px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 .setting-block {
@@ -2571,6 +2669,10 @@ input[type="range"]::-moz-range-thumb {
 
   .compare-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .model-info {
+    margin-left: 0;
   }
 
   .preview-stage {
