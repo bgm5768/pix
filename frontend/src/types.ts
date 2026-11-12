@@ -498,6 +498,55 @@ export interface StudioStatus {
   flows?: StudioFlow[];
 }
 
+export interface StudioEpisode {
+  ep: string;
+  title: string;
+  pages: number;
+  test?: boolean;
+  mtime?: number;
+}
+
+export interface StudioCut {
+  id: number;
+  page?: number;
+  shot?: string;
+  scene?: string;
+  duo?: boolean;
+  roles?: unknown;
+  img?: string;
+  cands?: { name: string; img: string }[];
+}
+
+export interface StudioEpisodeDetail {
+  ep: string;
+  title?: string;
+  anima?: boolean;
+  flow?: string | null;
+  flows?: string[];
+  cuts: StudioCut[];
+  has_plan?: boolean;
+  has_conti?: boolean;
+  error?: string | null;
+}
+
+export interface StudioDrawItem {
+  name: string;
+  seed: number;
+  source: string;
+  path: string;
+  url: string;
+  copied: boolean;
+}
+
+export interface StudioDrawResult {
+  ep: string;
+  cut: number;
+  flow: string;
+  items: StudioDrawItem[];
+  output_dir: string;
+  log: string;
+}
+
 export interface AppSettings {
   mode: AssetMode;
   outputSize: OutputSize;

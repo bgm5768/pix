@@ -4227,28 +4227,6 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 10px;
 }
 
-.studio-warn {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  color: var(--warn);
-  font-size: 11px;
-  line-height: 1.55;
-  background: rgba(255, 200, 87, 0.07);
-  border: 1px solid rgba(255, 200, 87, 0.28);
-  border-radius: 10px;
-}
-
-.studio-warn code {
-  padding: 1px 5px;
-  color: var(--text-soft);
-  font-family: var(--mono);
-  font-size: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-}
-
 .studio-models {
   display: flex;
   flex-direction: column;
@@ -4277,9 +4255,27 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   gap: 2px;
   padding: 6px 9px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--line);
   border-radius: 8px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.studio-model-chip:hover {
+  border-color: rgba(125, 255, 178, 0.45);
+}
+
+.studio-model-chip.is-selected {
+  background: rgba(125, 255, 178, 0.08);
+  border-color: var(--accent);
+}
+
+.studio-model-chip.is-selected strong {
+  color: var(--accent);
 }
 
 .studio-model-chip strong {
@@ -4292,6 +4288,160 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted-deep);
   font-family: var(--mono);
   font-size: 8.5px;
+}
+
+.studio-draw {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+
+.studio-draw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.studio-draw-head .field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.studio-draw-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.studio-draw-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.studio-draw-grid select,
+.studio-draw-grid input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.studio-draw-grid select:focus,
+.studio-draw-grid input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.studio-draw-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.studio-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.studio-draw-scene {
+  padding: 7px 9px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.studio-draw-scene strong {
+  color: var(--text-soft);
+}
+
+.studio-draw-result {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line-soft);
+}
+
+.studio-draw-result > p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 10.5px;
+}
+
+.studio-draw-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.studio-draw-thumbs a {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted-deep);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  text-decoration: none;
+}
+
+.studio-draw-thumbs img {
+  width: 116px;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.studio-draw-thumbs a:hover img {
+  border-color: var(--accent);
+}
+
+.studio-draw-log summary {
+  color: var(--muted);
+  font-size: 9.5px;
+  cursor: pointer;
+}
+
+.studio-draw-log pre {
+  max-height: 130px;
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow: auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 7px;
+}
+
+@media (max-width: 900px) {
+  .studio-draw-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .studio-empty {

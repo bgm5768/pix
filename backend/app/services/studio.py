@@ -5,14 +5,17 @@ import contextlib
 import json
 import logging
 import os
+import random
 import re
 import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -66,6 +69,8 @@ class StudioService:
     }
     FLOW_PROMPT = "%quality%, %artist%, safe, %char%, %scene%"
     FLOW_RE = re.compile(r"^[A-Za-z0-9_\-\uac00-\ud7a3.]{1,60}$")
+    EP_RE = re.compile(r"^[A-Za-z0-9_\-]{1,40}$")
+    SEED_MAX = 2**31 - 1
     NON_SDXL_TOKENS = (
         "hunyuan",
         "sam3",
@@ -82,6 +87,7 @@ class StudioService:
         self._process: subprocess.Popen[bytes] | None = None
         self._log_handle: Any = None
         self._lock = asyncio.Lock()
+        self._draw_lock = threading.Lock()
 
     # ------------------------------------------------------------------ paths
     @property
@@ -104,7 +110,22 @@ class StudioService:
         return self.kit_path / "workflows"
 
     def policy_agreed(self) -> bool:
-        """nk asks for the use-policy consent once; the marker file records it."""
+        """Whether this nk version still needs its interactive use-policy consent.
+
+        Older kits asked for ``agree`` once and only ran non-interactively with
+        ``NK_AGREE=1``. Newer kits (and this user's kit) removed that gate, so
+        there is nothing to wait for.
+        """
+        try:
+            source = (self.kit_path / "nk.py").read_text(
+                encoding="utf-8", errors="replace"
+            )
+        except Exception:
+            return True
+        if "ensure_agreed" not in source:
+            return True
+        if os.environ.get("NK_AGREE") == "1":
+            return True
         marker = self.kit_path / ".nk_agreed"
         try:
             return marker.read_text(encoding="utf-8").split()[0] == "1"
@@ -422,6 +443,174 @@ class StudioService:
                 "_meta": {"title": self.FLOW_TITLES["20"]},
             }
         return graph
+
+    # ------------------------------------------------------------ draw a cut
+    @property
+    def output_root(self) -> Path:
+        """Where nk writes runs (presets.yaml ``output_root``, default ``runs``)."""
+        try:
+            import yaml
+
+            cfg = yaml.safe_load(
+                (self.kit_path / "presets.yaml").read_text(encoding="utf-8")
+            ) or {}
+            root = Path(str(cfg.get("output_root") or "runs")).expanduser()
+            if not root.is_absolute():
+                root = self.kit_path / root
+            return root
+        except Exception:
+            return self.kit_path / "runs"
+
+    def preview_url(self, path: Path) -> str:
+        return f"/api/studio/preview?path={quote(str(path), safe='')}"
+
+    def draw_cut(
+        self,
+        ep: str,
+        cut: int,
+        flow: str,
+        seeds: list[int] | None = None,
+        copy_to_candidates: bool = True,
+    ) -> dict[str, Any]:
+        """Draw one solo cut with a model workflow, without changing nk.
+
+        nk already has ``nk ep flow try <flow> --ep <ep> --cut <cut>``: it builds
+        the cut prompt with nk's own character/scene/LoRA rules and renders it
+        through the selected workflow. This method runs that command, then (by
+        default) drops the images into the episode's candidate folder so the
+        studio's normal 「이걸로」 button can promote one to the final cut.
+        """
+        if not self.installed:
+            raise ValueError(f"nk 만화 제작기를 찾지 못했습니다: {self.kit_path}")
+        if not self.EP_RE.match(ep or ""):
+            raise ValueError(f"에피소드 이름이 이상합니다: {ep!r}")
+        try:
+            cut_no = int(cut)
+        except Exception as exc:
+            raise ValueError("컷 번호가 이상합니다.") from exc
+        if not 1 <= cut_no <= 200:
+            raise ValueError("컷 번호는 1~200 사이여야 합니다.")
+        if flow not in {item["name"] for item in self.list_model_flows()}:
+            raise ValueError(f"등록되지 않은 그림 워크플로입니다: {flow}")
+
+        seed_list = [int(seed) for seed in (seeds or []) if str(seed).strip()]
+        if not seed_list:
+            seed_list = [random.randint(1, self.SEED_MAX)]
+        if len(seed_list) > 4:
+            raise ValueError("한 번에 최대 4장까지 그릴 수 있습니다.")
+        for seed in seed_list:
+            if not 1 <= seed <= self.SEED_MAX:
+                raise ValueError(f"시드는 1~{self.SEED_MAX} 사이여야 합니다.")
+
+        with self._draw_lock:
+            env = os.environ.copy()
+            env["PYTHONIOENCODING"] = "utf-8"
+            env["PYTHONUNBUFFERED"] = "1"
+            command = [
+                self.python_executable(),
+                "nk.py",
+                "ep",
+                "flow",
+                "try",
+                flow,
+                "--ep",
+                ep,
+                "--cut",
+                str(cut_no),
+                "--seeds",
+                ",".join(str(seed) for seed in seed_list),
+            ]
+            timeout = 90 + 150 * len(seed_list)
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=str(self.kit_path),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    env=env,
+                    timeout=timeout,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise StudioError(
+                    "선택한 모델로 컷을 그리는 데 시간이 너무 오래 걸립니다.",
+                    detail=f"timeout={timeout}s",
+                ) from exc
+            stdout = completed.stdout or ""
+            stderr = completed.stderr or ""
+            if completed.returncode != 0:
+                raise StudioError(
+                    "선택한 모델로 컷을 그리지 못했습니다.",
+                    detail="\n".join(
+                        [line for line in (stdout + "\n" + stderr).splitlines() if line.strip()][-18:]
+                    ),
+                )
+
+            out_dir = (
+                self.output_root
+                / "flowtry"
+                / f"{Path(flow).stem}_{ep}_cut{cut_no:02d}"
+            )
+            images: list[tuple[int, Path]] = []
+            for seed in seed_list:
+                image = out_dir / f"flow_s{seed}.png"
+                if image.is_file():
+                    images.append((seed, image))
+            if not images:
+                raise StudioError(
+                    "그림은 그려졌지만 결과 파일을 찾지 못했습니다.",
+                    detail=str(out_dir),
+                )
+
+            copied: list[tuple[int, Path]] = []
+            if copy_to_candidates:
+                candidate_dir = (
+                    self.kit_path / "episodes" / ep / "cands" / f"cut{cut_no:02d}"
+                )
+                candidate_dir.mkdir(parents=True, exist_ok=True)
+                next_number = self._next_candidate_number(candidate_dir)
+                for seed, image in images:
+                    target = candidate_dir / f"r{next_number:02d}.png"
+                    shutil.copy2(image, target)
+                    copied.append((seed, target))
+                    next_number += 1
+
+            by_seed = {seed: path for seed, path in copied}
+            items: list[dict[str, Any]] = []
+            for seed, image in images:
+                target = by_seed.get(seed, image)
+                items.append(
+                    {
+                        "name": target.name,
+                        "seed": seed,
+                        "source": str(image),
+                        "path": str(target),
+                        "url": self.preview_url(target),
+                        "copied": bool(copy_to_candidates),
+                    }
+                )
+
+            log_lines = [
+                line for line in stdout.splitlines() if line.strip()
+            ][-12:]
+            return {
+                "ep": ep,
+                "cut": cut_no,
+                "flow": flow,
+                "items": items,
+                "output_dir": str(out_dir),
+                "log": "\n".join(log_lines),
+            }
+
+    @staticmethod
+    def _next_candidate_number(candidate_dir: Path) -> int:
+        used = {
+            int(match.group(1))
+            for path in candidate_dir.glob("r*.png")
+            if (match := re.match(r"^r(\d{2,3})\.png$", path.name))
+        }
+        return max(used, default=0) + 1
 
     # ------------------------------------------------------------------ proxy
     @staticmethod

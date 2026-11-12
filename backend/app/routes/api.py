@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, File, Query, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
-from pathlib import Path
 from typing import Any
 
 from app.config import Settings
@@ -181,6 +181,60 @@ async def studio_start(request: Request) -> dict:
 async def studio_flows(request: Request) -> dict:
     studio = _studio(request)
     return {"items": studio.list_model_flows()}
+
+
+@router.post("/studio/draw-cut")
+async def studio_draw_cut(payload: dict, request: Request) -> dict:
+    """Draw one cut with a chosen model workflow (nk ep flow try)."""
+    studio = _studio(request)
+    raw_seeds = payload.get("seeds")
+    seeds: list[int] = []
+    try:
+        if isinstance(raw_seeds, str):
+            seeds = [
+                int(part)
+                for part in re.split(r"[,\s]+", raw_seeds.strip())
+                if part.strip()
+            ]
+        elif isinstance(raw_seeds, (list, tuple)):
+            seeds = [int(part) for part in raw_seeds if str(part).strip()]
+        ep = str(payload.get("ep") or "")
+        cut = int(payload.get("cut") or 0)
+        flow = str(payload.get("flow") or "")
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="에피소드·컷·시드 값이 이상합니다.") from exc
+    try:
+        return await asyncio.to_thread(
+            studio.draw_cut,
+            ep,
+            cut,
+            flow,
+            seeds,
+            bool(payload.get("copy_to_candidates", True)),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/studio/preview")
+async def studio_preview(request: Request, path: str = Query(...)) -> FileResponse:
+    """Serve a generated studio image (run output or candidate) to the UI."""
+    studio = _studio(request)
+    target = Path(path).expanduser()
+    if not target.is_absolute():
+        target = studio.kit_path / target
+    try:
+        target = target.resolve()
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail="경로를 읽을 수 없습니다.") from exc
+    allowed = [studio.kit_path.resolve(), studio.output_root.resolve()]
+    if not any(target == root or root in target.parents for root in allowed):
+        raise HTTPException(status_code=403, detail="허용되지 않은 경로입니다.")
+    if target.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+        raise HTTPException(status_code=400, detail="이미지 파일이 아닙니다.")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="이미지를 찾지 못했습니다.")
+    return FileResponse(target)
 
 
 @router.post("/studio/flows/refresh")
