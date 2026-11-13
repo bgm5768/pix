@@ -315,6 +315,25 @@ def _assert_adult(text: str) -> None:
             raise ComicStudioError(ADULT_WARNING)
 
 
+def _rewrite_plan_model(raw: str, model: str) -> str:
+    """Point the plan's top-level model/flow key at the chosen checkpoint.
+
+    The toolbar model picker is the primary control, so saving a new model should
+    not be silently overridden by an old ``model:`` line inside plan.yaml.
+    """
+    if not model or not raw:
+        return raw
+    lines = raw.splitlines()
+    for index, line in enumerate(lines):
+        match = re.match(r"^(model|flow)\s*:\s*(.*)$", line)
+        if not match:
+            continue
+        lines[index] = f"{match.group(1)}: {json.dumps(model, ensure_ascii=False)}"
+        text = "\n".join(lines)
+        return text + ("\n" if raw.endswith("\n") else "")
+    return raw
+
+
 class ComicStudioService:
     """An independent, uncensored comic workflow for PixelForge.
 
@@ -579,14 +598,22 @@ pages:
 
     def update_project(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         project = self._load_project(project_id)
+        model_changed = False
         if "title" in payload and payload["title"] is not None:
             title = _text(payload.get("title"))
             if title:
                 project["title"] = title
         if "model" in payload and payload["model"] is not None:
-            project["model"] = _text(payload.get("model")) or project.get("model", "")
+            model = _text(payload.get("model"))
+            if model and model != project.get("model"):
+                project["model"] = model
+                model_changed = True
         if "plan_yaml" in payload and payload["plan_yaml"] is not None:
             project["plan_yaml"] = str(payload.get("plan_yaml"))
+        if model_changed:
+            project["plan_yaml"] = _rewrite_plan_model(
+                str(project.get("plan_yaml") or ""), str(project["model"])
+            )
         self._save_project(project)
         return self.project_detail(project_id)
 
