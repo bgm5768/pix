@@ -21,11 +21,6 @@
   ReferenceAsset,
   ReferenceCapabilities,
   ReferenceSamplesResponse,
-  StudioDrawResult,
-  StudioEpisodeDetail,
-  StudioEpisode,
-  StudioFlow,
-  StudioStatus,
   SystemStatusResponse,
   TranslateResponse,
 } from "../types";
@@ -171,32 +166,6 @@ export const api = {
         ? `/api/references/capabilities?checkpoint=${encodeURIComponent(checkpoint)}`
         : "/api/references/capabilities",
     ),
-  getStudioStatus: () => request<StudioStatus>("/api/studio/status"),
-  startStudio: () =>
-    request<StudioStatus>("/api/studio/start", {
-      method: "POST",
-    }),
-  getStudioFlows: () =>
-    request<{ items: StudioFlow[] }>("/api/studio/flows"),
-  getStudioEpisodes: () =>
-    request<StudioEpisode[]>("/studio/api/episodes"),
-  getStudioEpisode: (ep: string) =>
-    request<StudioEpisodeDetail>(`/studio/api/ep?ep=${encodeURIComponent(ep)}`),
-  drawStudioCut: (payload: {
-    ep: string;
-    cut: number;
-    flow: string;
-    seeds: string;
-    copy_to_candidates?: boolean;
-  }) =>
-    request<StudioDrawResult>("/api/studio/draw-cut", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  refreshStudioFlows: () =>
-    request<{ items: StudioFlow[]; flow_dir: string }>("/api/studio/flows/refresh", {
-      method: "POST",
-    }),
   getComicPages: () => request<{ items: ComicPageInfo[] }>("/api/comic/pages"),
   buildComicPage: (payload: {
     layout: string;

@@ -666,7 +666,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
       <section className="panel studio-panel comic-studio-panel is-nk-mode">
         <div className="panel-head">
           <div>
-            <span className="eyebrow">05 · COMIC STUDIO</span>
+            <span className="eyebrow">04 · COMIC STUDIO</span>
             <h2>
               만화 스튜디오 <span className="comic-mode-badge">NK 그대로 · safe·안전태그 제거</span>
             </h2>
@@ -719,7 +719,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
     <section className="panel studio-panel comic-studio-panel">
       <div className="panel-head">
         <div>
-          <span className="eyebrow">05 · COMIC STUDIO</span>
+          <span className="eyebrow">04 · COMIC STUDIO</span>
           <h2>만화 스튜디오</h2>
         </div>
         <div className="studio-head-actions">

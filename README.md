@@ -3,7 +3,7 @@
 로컬 ComfyUI + SDXL로 텍스트 프롬프트에서 **픽셀아트 스프라이트**와 **일반 이미지**를 만드는 Windows 전용 앱입니다.
 외부 이미지 생성 API를 사용하지 않으며, 모든 생성은 이 PC의 GPU에서 실행됩니다.
 
-- **페이지**: 상단의 `픽셀 생성기` / `이미지 생성기` / `이미지to이미지 느낌` / `만화 작업실` / `만화 스튜디오` 탭으로 전환
+- **페이지**: 상단의 `픽셀 생성기` / `이미지 생성기` / `이미지to이미지 느낌` / `만화 스튜디오` 탭으로 전환
 - **이미지to이미지(레퍼런스)**: 참고 이미지를 업로드하거나 제공된 샘플 중에서 고르고,
   이미지마다 초점(외형·얼굴·화풍·포즈·구도)과 강도를 지정해 새 이미지에 반영
   (IP-Adapter Plus + CLIP Vision ViT-H, SDXL/NoobAI 계열 체크포인트 호환)
@@ -21,10 +21,9 @@
 - **연재 컷 일괄 생성**: 참고 이미지·얼굴 고정을 유지한 채 한 줄에 한 컷씩 적어 순서대로 생성
 - **만화 페이지 조립**: 고른 컷에 말풍선(한국어 줄바꿈 지원)을 넣어 레이아웃대로 한 쪽을
   만들고 PNG·PDF로 저장
-- **만화 작업실 모델 선택**: 설치된 SDXL 모델마다 nk 그림 워크플로를 만들어, 4번째 탭에서
-  에피소드·컷을 고르고 그 모델로 다시 그려 후보로 넣을 수 있음 (nk 코드 수정 없음)
-- **만화 스튜디오 (5번째 탭)**: nk와 별개인 자체 콘티→컷→후보→선택→페이지/PDF 흐름.
-  로컬 ComfyUI와 무검열 SDXL 체크포인트를 그대로 쓰고, 프롬프트에 safe 태그를 넣지 않음
+- **만화 스튜디오 (4번째 탭)**: nk의 실제 제작 흐름(콘티→후보→QA→선택→글자/쪽→PDF)을
+  그대로 쓰는 **NK 그대로 모드**와, nk 없이 자체 구현한 **간편 모드**를 제공.
+  로컬 ComfyUI와 무검열 SDXL 체크포인트를 그대로 쓴다
 - **페이지별 모델**: 픽셀 페이지에는 pixel/sprite 계열, 이미지·레퍼런스 페이지에는 SDXL 일반 모델만 표시
 - **이미지 LoRA**: `sexy` 슬라이더 LoRA 선택 시 트리거 단어를 이미지 프롬프트에 자동 추가
 - **한국어 → 영어 번역**: 이미지/레퍼런스 페이지의 한국어 프롬프트를 오프라인 ONNX 모델
@@ -560,73 +559,40 @@ UI에 경고가 표시됩니다. `config/settings.yaml`에서 `generation.rembg_
 > 얼굴을 못 찾는 사진(뒤모습·심야·손 가림 등)을 주면 생성 중
 > `얼굴을 찾지 못했습니다` 오류가 납니다. 정면 사진으로 교체해 주세요.
 
-### 4.5 만화 작업실 (nk)
+### 4.5 만화 스튜디오 (4번째 탭)
 
-4번째 탭 **만화 작업실**은 nk 만화 제작기의 작업실을 그대로 불러온다.
-(새 만화 · 이어서 만들기 · 컷 다시 그리기 · 후보 고르기 · 대사/말풍선 · 쪽 짜기 · PDF 조립)
-
-- 백엔드가 `nk ep web --port 8766 --no-open --no-runner` 로 작업실 서버를 자동으로 띄우고,
-  `/studio/` 경로로 프록시해 화면을 그대로 보여준다.
-- 같은 ComfyUI(`http://127.0.0.1:8188`)와 공유 모델 폴더를 쓴다.
-  nk 쪽 `presets.yaml` 의 `pixelforge_*` 프리셋으로 LUSTIFY!/NoobAI/Pony 등을 바로 고를 수 있다.
-- nk 쪽 안전장치는 nk 설정을 그대로 따른다. PixelForge는 nk 코드를 수정하지 않는다.
-
-### 4.5.1 작업실 그림 모델 선택
-
-PixelForge 는 설치된 SDXL 체크포인트마다 nk 그림 워크플로(`workflows/<이름>.json`)를
-하나씩 만들어 둔다. 작업실 탭의 **「모델로 컷 그리기」** 에서 에피소드·컷·모델·시드를
-고르면, nk 의 캐릭터/장면/LoRA 규칙으로 그 모델이 컷을 그린다.
-
-- **Anima 만화**(nk 의 기본 제작 방식)에서는 nk 작업실 안의 「그림 워크플로」
-  드롭다운이 숨겨져 있다. 그래서 PixelForge 탭에 별도 모델 선택 패널을 두었다.
-- 「nk 작업실 후보 목록에 추가」를 켜면 결과가 `episodes/<ep>/cands/cutNN/rNN.png`
-  로 들어간다. 작업실에서 그 컷의 후보 목록을 열고 「이걸로」를 누르면 최종 컷이 된다.
-- 내부적으로는 nk 의 **`nk ep flow try <모델> --ep <ep> --cut <cut>`** 명령을 그대로
-  실행한다. nk 코드를 수정하지 않고, nk 가 이미 제공하는 워크플로 기능만 쓴다.
-- 두 명 컷은 nk 의 두 캐릭터 합성 경로가 필요해서 이 패널에서는 아직 지원하지 않는다.
-  (작업실의 「다시 그리기」를 쓴다.)
-- 「모델 목록 갱신」은 새로 설치한 SDXL 모델을 워크플로로 추가한다.
-
-설정(`config/settings.yaml`):
-
-```yaml
-studio:
-  kit_path: 'C:\nk'   # nk.py 가 있는 폴더
-  port: 8766          # 픽셀포지(8765)와 겹치지 않게
-  python: ''          # 비우면 PATH 의 python (numpy/cv2/PIL/pyyaml 필요)
-```
-
-> 작업실은 이 PC의 파일을 만들고 명령을 실행한다. 터널(외부 주소)로도 열 수 있지만
-> 그 주소를 아는 사람이 쓸 수 있으므로 개인용으로만 쓰는 게 좋다.
-
-### 4.5.2 만화 스튜디오 (5번째 탭)
-
-5번째 탭 **만화 스튜디오**는 두 가지 모드를 제공한다.
+4번째 탭 **만화 스튜디오**는 두 가지 모드를 제공한다.
 
 #### NK 그대로 모드 (기본)
 
-nk의 실제 제작 흐름을 그대로 쓴다. nk 작업실(4번째 탭)과 같은 엔진이지만,
-5번째 탭은 **safe 등급만 제거한 로컬 패치 복사본**을 실행한다.
+nk의 실제 제작 흐름을 그대로 쓴다. **safe 등급과 부정 안전 태그를 제거한 로컬 패치
+복사본**을 실행한다.
 
 - **흐름**: 새 만화 → 콘티 컴파일(`nk ep compile`) → 컷별 후보 생성
   (`nk ep redo`) → 자동 검수(QA)·자동 수정 → 후보 선택 → 말풍선/글자
   (`nk ep letter`) → 쪽 짜기(`nk ep layout`) → 표지(`nk ep cover`) →
-  리뷰 시트 → `book.pdf`. nk 작업실의 **`ep auto`** 한 번으로도 전체를 돌릴 수 있다.
-- **safe 제거**: 프롬프트 빌더의 `safe` 태그만 뺀다. nk의 캐릭터·워크플로·
-  폰트·문서·에피소드 폴더는 원본과 공유하므로 기존 만화가 그대로 보인다.
-- **원본 보존**: `C:\nk` 는 수정하지 않는다. `scripts/patch_nk_uncensored.py` 가
-  `nk_uncensored/` 에 런타임 복사본을 만들고, 그 안에서만 `safe` 를 제거한다.
-  `nk_uncensored/` 는 `.gitignore` 에 포함되어 저장소에 올라가지 않는다.
-- **포트**: 패치 복사본은 `8767`, 4번째 탭의 원본 작업실은 `8766` 을 쓴다.
-  PixelForge가 `/nk-studio/` 와 `/api/nk-studio/*` 로 프록시한다.
+  리뷰 시트 → `book.pdf`. **`ep auto`** 한 번으로도 전체를 돌릴 수 있다.
+- **safe·안전태그 제거**: 프롬프트 빌더의 `safe` 태그와 기본 네거티브의
+  `cub, young, child, loli, shota` 를 뺀다.
+- **독립 실행**: `--standalone` 으로 캐릭터·워크플로·폰트·문서·에피소드·모델·
+  런까지 모두 `nk_uncensored/` 안에 복사한다. 그래서 **원본 `C:\nk` 폴더를
+  삭제해도** NK 모드가 그대로 동작한다.
+- **원본 보존**: 패치 스크립트는 `C:\nk` 를 수정하지 않는다. `nk_uncensored/`
+  는 `.gitignore` 에 포함되어 저장소에 올라가지 않는다.
+- **포트**: 패치 복사본은 `8767` 을 쓴다. PixelForge가 `/nk-studio/` 와
+  `/api/nk-studio/*` 로 프록시한다.
 - **설정**: `studio_uncensored.kit_path`(기본 `nk_uncensored`),
   `studio_uncensored.port`(기본 `8767`).
 
 ```bat
 :: 패치 복사본 만들기/갱신 (원본 nk는 건드리지 않음)
 python scripts\patch_nk_uncensored.py
+
+:: 원본 C:\nk 까지 복사해 완전히 독립적인 복사본 만들기
+python scripts\patch_nk_uncensored.py --standalone
 ```
 
+> `C:\nk` 를 삭제하기 전에 `--standalone` 으로 한 번 갱신해 두면 된다.
 > nk의 `safe` 태그, QA 등급, 부정 프롬프트의 `cub, young, child, loli, shota`
 > 안전 태그를 제거한 것이다. 성인 캐릭터만 사용하고 실제 인물·미성년자는 넣지 않는다.
 > 로컬 전용 기능이다.
@@ -710,7 +676,7 @@ nk 코드를 쓰지 않고 같은 작업 흐름을 자체 구현한 모드다. �
 - 참고 이미지·얼굴 고정(InstantID/PuLID) 설정이 그대로 유지되므로 **같은 캐릭터**로
   이어서 그려진다.
 - 컷마다 상태(대기 중 → 그리는 중 → 완료/실패)와 결과 이미지가 스트립으로 보인다.
-- 폰트·말풍선·쪽 짜기까지 필요하면 4번 탭 **만화 작업실**(nk)을 쓴다.
+- 폰트·말풍선·쪽 짜기까지 필요하면 4번 탭 **만화 스튜디오**의 NK 모드를 쓴다.
 
 ### 4.8 만화 페이지 조립
 
@@ -842,17 +808,10 @@ outputs/
 | GET | `/api/references/samples` | 제공된 참고 샘플 목록 |
 | POST | `/api/references/upload` | 참고 이미지 업로드 (multipart `file`) → 분석 결과 포함 |
 | GET | `/api/references/capabilities?checkpoint=...` | IP-Adapter/얼굴 고정 설치·호환 상태와 안내 문구 |
-| GET | `/api/studio/status` | nk 만화 작업실 설치·실행 상태 (모델 워크플로 포함) |
-| POST | `/api/studio/start` | nk 만화 작업실 서버 기동 |
-| GET | `/api/studio/flows` | 설치된 모델별 nk 그림 워크플로 목록 |
-| POST | `/api/studio/flows/refresh` | 모델 워크플로 다시 만들기 (새 모델 반영) |
-| POST | `/api/studio/draw-cut` | 고른 모델 워크플로로 컷 하나 그리기 (`nk ep flow try`) |
-| GET | `/api/studio/preview?path=...` | 그린 컷 이미지 미리보기 |
-| GET/POST | `/studio/...` | nk 작업실 화면·API 프록시 (작업실이 그대로 동작) |
-| GET | `/api/nk-studio/status` | safe 제거 nk 작업실(5번째 탭) 설치·실행 상태 |
-| POST | `/api/nk-studio/start` | safe 제거 nk 작업실 서버 기동 (포트 8767) |
-| POST | `/api/nk-studio/stop` | safe 제거 nk 작업실 서버 종료 |
-| GET/POST | `/nk-studio/...` | safe 제거 nk 작업실 화면·API 프록시 |
+| GET | `/api/nk-studio/status` | NK 그대로 모드(4번째 탭) 설치·실행 상태 |
+| POST | `/api/nk-studio/start` | NK 그대로 모드 서버 기동 (포트 8767) |
+| POST | `/api/nk-studio/stop` | NK 그대로 모드 서버 종료 |
+| GET/POST | `/nk-studio/...` | NK 그대로 모드 화면·API 프록시 |
 | POST | `/api/comic/page` | 컷 + 말풍선으로 만화 페이지(PNG/PDF) 조립 |
 | GET | `/api/comic/pages` | 조립한 페이지 목록 |
 | GET | `/api/comic/page/{id}.pdf` | 페이지 PDF 다운로드 |
@@ -1271,11 +1230,11 @@ pix/
 │        ├─ model_downloads.py     # 모델 다운로드/이어받기/취소
 │        ├─ outputs.py             # 픽셀/이미지/레퍼런스 저장, 출력 목록, 다운로드/삭제
 │        ├─ references.py          # 참고 이미지 업로드·분석, 샘플 목록, IP-Adapter 상태 확인
-│        ├─ studio.py              # nk 작업실 기동 + /studio·/nk-studio 프록시 + 모델 워크플로·컷 그리기
+│        ├─ studio.py              # NK 그대로 모드 기동 + /nk-studio 프록시
 │        ├─ comic.py               # 만화 페이지 조립(컷 배치 + 말풍선 + PDF)
 │        └─ errors.py              # 사용자 친화적 오류 타입
 ├─ scripts/
-│  └─ patch_nk_uncensored.py        # nk 로컬 패치 복사본 생성(safe 제거, 원본 보존)
+│  └─ patch_nk_uncensored.py        # nk 로컬 패치 복사본 생성(safe·안전태그 제거, --standalone 지원)
 ├─ nk_uncensored/                   # 패치 복사본 (git 제외, patch 스크립트가 생성)
 ├─ config/
 │  ├─ settings.yaml                # 실행 설정 (translation 포함)

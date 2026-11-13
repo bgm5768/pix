@@ -159,7 +159,7 @@ class StudioConfig(BaseModel):
     # Folder that holds nk.py (the comic maker kit).
     kit_path: str = r"C:\nk"
     # Port the studio server listens on. 8765 is PixelForge's own port, so the
-    # studio gets its own one and is reached through /studio/.
+    # studio gets its own one and is reached through /nk-studio/.
     port: int = 8766
     # Python that can run nk (needs numpy/cv2/PIL/pyyaml).
     python: str = ""
@@ -191,7 +191,6 @@ class Settings(BaseModel):
     translation: TranslationConfig = Field(default_factory=TranslationConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
-    studio: StudioConfig = Field(default_factory=StudioConfig)
     studio_uncensored: NkUncensoredConfig = Field(default_factory=NkUncensoredConfig)
     comic_studio: ComicStudioConfig = Field(default_factory=ComicStudioConfig)
 

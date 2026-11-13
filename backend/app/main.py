@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import PROJECT_ROOT, get_settings
 from app.routes.api import router as api_router
-from app.routes.api import nk_studio_router, studio_router
+from app.routes.api import nk_studio_router
 from app.services.comfy_client import ComfyClient
 from app.services.comfy_launcher import ComfyLauncher
 from app.services.errors import PixelForgeError
@@ -67,7 +67,6 @@ async def lifespan(app: FastAPI):
     jobs = JobManager(settings, comfy, launcher, translator)
     downloads = ModelDownloadManager(settings, comfy)
     monitor = SystemMonitor()
-    studio = StudioService(settings)
     nk_studio = StudioService(
         settings,
         settings.studio_uncensored,
@@ -85,7 +84,6 @@ async def lifespan(app: FastAPI):
     app.state.jobs = jobs
     app.state.downloads = downloads
     app.state.monitor = monitor
-    app.state.studio = studio
     app.state.nk_studio = nk_studio
     app.state.comic = comic
     app.state.comic_studio = comic_studio
@@ -128,7 +126,6 @@ async def lifespan(app: FastAPI):
         await jobs.stop()
         await downloads.close()
         await comfy.close()
-        await studio.stop()
         await nk_studio.stop()
         launcher.shutdown()
         logger.info("PixelForge Local backend stopped")
@@ -165,7 +162,6 @@ async def private_network_access(request: Request, call_next):
 
 
 app.include_router(api_router)
-app.include_router(studio_router)
 app.include_router(nk_studio_router)
 
 outputs_root = PROJECT_ROOT / "outputs"

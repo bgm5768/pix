@@ -9,6 +9,10 @@ existing comics keep working.
 
 Usage:
     python scripts/patch_nk_uncensored.py [--source C:\\nk] [--dest ...]
+    python scripts/patch_nk_uncensored.py --standalone   # copy shared data too
+
+``--standalone`` copies characters, workflows, fonts, docs, models, runs and
+episodes into the destination so the original kit can be removed afterwards.
 
 Required Notice: Copyright (c) 2026 니코(Niko)
 """
@@ -89,6 +93,14 @@ JUNCTION_DIRS = (
     "episodes",
 )
 
+# Extra data needed for a self-contained copy (used by --standalone).
+DATA_DIRS = (
+    "models",
+    "runs",
+    "training",
+    "_remote",
+)
+
 SAFE_REPLACEMENTS: dict[str, list[tuple[str, str]]] = {
     "presets.yaml": [
         (", cub, young, child, loli, shota", ""),
@@ -139,7 +151,23 @@ def _junction(link: Path, target: Path) -> None:
     _run(["cmd", "/c", "mklink", "/J", str(link), str(target)])
 
 
-def _copy_runtime(source: Path, dest: Path) -> None:
+def _is_junction(path: Path) -> bool:
+    """True for an NTFS junction (Path.is_symlink() misses junctions on 3.11)."""
+    try:
+        os.readlink(path)
+    except OSError:
+        return False
+    return path.is_dir()
+
+
+def _copy_dir(source: Path, dest: Path) -> None:
+    """Copy a directory, replacing a destination junction instead of writing through it."""
+    if _is_junction(dest):
+        os.rmdir(dest)
+    shutil.copytree(source, dest, dirs_exist_ok=True)
+
+
+def _copy_runtime(source: Path, dest: Path, standalone: bool = False) -> None:
     dest.mkdir(parents=True, exist_ok=True)
     for name in COPY_FILES:
         src = source / name
@@ -152,8 +180,27 @@ def _copy_runtime(source: Path, dest: Path) -> None:
         shutil.copy2(agreed, dest / ".nk_agreed")
     for name in JUNCTION_DIRS:
         target = source / name
-        if target.is_dir():
+        if not target.is_dir():
+            continue
+        if standalone:
+            print(f"[copy] {name}")
+            _copy_dir(target, dest / name)
+        else:
             _junction(dest / name, target)
+    if standalone:
+        for name in DATA_DIRS:
+            target = source / name
+            if not target.is_dir():
+                continue
+            print(f"[copy] {name}")
+            _copy_dir(target, dest / name)
+        for name in ("README.md", "requirements.txt", ".gitignore"):
+            src = source / name
+            if src.is_file():
+                shutil.copy2(src, dest / name)
+        for src in sorted(source.glob("AI_*.md")):
+            if src.is_file():
+                shutil.copy2(src, dest / src.name)
     (dest / "_remote").mkdir(exist_ok=True)
     (dest / "runs").mkdir(exist_ok=True)
     (dest / "NOTICE.txt").write_text(
@@ -197,6 +244,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--dest", type=Path, default=DEFAULT_DEST)
+    parser.add_argument(
+        "--standalone",
+        action="store_true",
+        help="copy shared folders into the destination instead of linking them, "
+        "so the original kit can be deleted",
+    )
     args = parser.parse_args()
 
     source = args.source.expanduser().resolve()
@@ -206,7 +259,7 @@ def main() -> int:
         return 1
 
     print(f"[1/4] copying runtime: {source} -> {dest}")
-    _copy_runtime(source, dest)
+    _copy_runtime(source, dest, standalone=args.standalone)
     print("[2/4] removing safe tags from prompt builders")
     changed = _patch_safe(dest)
     print("      patched: " + (", ".join(changed) if changed else "already clean"))

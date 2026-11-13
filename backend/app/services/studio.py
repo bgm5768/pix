@@ -86,14 +86,14 @@ class StudioService:
     def __init__(
         self,
         settings: Settings,
-        config: StudioConfig | None = None,
-        proxy_prefix: str = "/studio",
+        config: StudioConfig,
+        proxy_prefix: str = "/nk-studio",
         log_name: str = "nk-studio.log",
         display_name: str = "nk 작업실",
     ):
         self.settings = settings
-        self.config = config or settings.studio
-        self.proxy_prefix = proxy_prefix.rstrip("/") or "/studio"
+        self.config = config
+        self.proxy_prefix = proxy_prefix.rstrip("/") or "/nk-studio"
         self.log_name = log_name
         self.display_name = display_name
         self._process: subprocess.Popen[bytes] | None = None

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,11 +54,10 @@ from app.services.references import (
 )
 from app.services.comic import ComicError, ComicService
 from app.services.comic_studio import ComicStudioError, ComicStudioService
-from app.services.studio import StudioError, StudioService
+from app.services.studio import StudioService
 from app.services.system_monitor import SystemMonitor
 
 router = APIRouter(prefix="/api", tags=["pixelforge"])
-studio_router = APIRouter(prefix="/studio", tags=["studio"])
 nk_studio_router = APIRouter(prefix="/nk-studio", tags=["nk-uncensored"])
 
 
@@ -81,10 +79,6 @@ def _downloads(request: Request) -> ModelDownloadManager:
 
 def _monitor(request: Request) -> SystemMonitor:
     return request.app.state.monitor
-
-
-def _studio(request: Request) -> StudioService:
-    return request.app.state.studio
 
 
 def _nk_studio(request: Request) -> StudioService:
@@ -322,91 +316,6 @@ def _resolve_output_path(settings: Settings, source: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-@router.get("/studio/status")
-async def studio_status(request: Request) -> dict:
-    studio = _studio(request)
-    status = studio.status()
-    status["allowed"] = True
-    status["remote_blocked"] = False
-    status["policy_agreed"] = studio.policy_agreed()
-    status["flows"] = studio.list_model_flows()
-    return status
-
-
-@router.post("/studio/start")
-async def studio_start(request: Request) -> dict:
-    studio = _studio(request)
-    await studio.ensure_running()
-    return studio.status()
-
-
-@router.get("/studio/flows")
-async def studio_flows(request: Request) -> dict:
-    studio = _studio(request)
-    return {"items": studio.list_model_flows()}
-
-
-@router.post("/studio/draw-cut")
-async def studio_draw_cut(payload: dict, request: Request) -> dict:
-    """Draw one cut with a chosen model workflow (nk ep flow try)."""
-    studio = _studio(request)
-    raw_seeds = payload.get("seeds")
-    seeds: list[int] = []
-    try:
-        if isinstance(raw_seeds, str):
-            seeds = [
-                int(part)
-                for part in re.split(r"[,\s]+", raw_seeds.strip())
-                if part.strip()
-            ]
-        elif isinstance(raw_seeds, (list, tuple)):
-            seeds = [int(part) for part in raw_seeds if str(part).strip()]
-        ep = str(payload.get("ep") or "")
-        cut = int(payload.get("cut") or 0)
-        flow = str(payload.get("flow") or "")
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail="에피소드·컷·시드 값이 이상합니다.") from exc
-    try:
-        return await asyncio.to_thread(
-            studio.draw_cut,
-            ep,
-            cut,
-            flow,
-            seeds,
-            bool(payload.get("copy_to_candidates", True)),
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.get("/studio/preview")
-async def studio_preview(request: Request, path: str = Query(...)) -> FileResponse:
-    """Serve a generated studio image (run output or candidate) to the UI."""
-    studio = _studio(request)
-    target = Path(path).expanduser()
-    if not target.is_absolute():
-        target = studio.kit_path / target
-    try:
-        target = target.resolve()
-    except OSError as exc:
-        raise HTTPException(status_code=400, detail="경로를 읽을 수 없습니다.") from exc
-    allowed = [studio.kit_path.resolve(), studio.output_root.resolve()]
-    if not any(target == root or root in target.parents for root in allowed):
-        raise HTTPException(status_code=403, detail="허용되지 않은 경로입니다.")
-    if target.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
-        raise HTTPException(status_code=400, detail="이미지 파일이 아닙니다.")
-    if not target.is_file():
-        raise HTTPException(status_code=404, detail="이미지를 찾지 못했습니다.")
-    return FileResponse(target)
-
-
-@router.post("/studio/flows/refresh")
-async def studio_refresh_flows(request: Request) -> dict:
-    studio = _studio(request)
-    written = studio.refresh_model_flows()
-    return {"items": written, "flow_dir": str(studio.flow_dir)}
-
-
 @router.get("/nk-studio/status")
 async def nk_studio_status(request: Request) -> dict:
     return _nk_studio(request).status()
@@ -436,30 +345,6 @@ async def nk_studio_proxy(path: str, request: Request) -> Response:
     body = await request.body()
     headers = {key: value for key, value in request.headers.items()}
     status_code, content_type, payload = await _nk_studio(request).proxy(
-        request.method,
-        path,
-        request.url.query,
-        headers,
-        body,
-    )
-    return Response(
-        content=payload,
-        status_code=status_code,
-        media_type=content_type,
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@studio_router.api_route("/", methods=["GET", "POST", "HEAD"])
-async def studio_root(request: Request) -> Response:
-    return await studio_proxy("", request)
-
-
-@studio_router.api_route("/{path:path}", methods=["GET", "POST", "HEAD"])
-async def studio_proxy(path: str, request: Request) -> Response:
-    body = await request.body()
-    headers = {key: value for key, value in request.headers.items()}
-    status_code, content_type, payload = await _studio(request).proxy(
         request.method,
         path,
         request.url.query,

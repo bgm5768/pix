@@ -7,7 +7,7 @@ import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
 import { BackendOverride } from "./components/BackendOverride";
 import { JobList } from "./components/JobList";
-import { BookIcon, ImageIcon, PaletteIcon, SparkIcon, StudioIcon } from "./components/Icons";
+import { BookIcon, ImageIcon, PaletteIcon, SparkIcon } from "./components/Icons";
 import { ModelPicker } from "./components/ModelPicker";
 import { PromptPanel } from "./components/PromptPanel";
 import { ReferencePanel } from "./components/ReferencePanel";
@@ -15,7 +15,6 @@ import { ResourceBar } from "./components/ResourceBar";
 import { ResultPanel } from "./components/ResultPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { StatusPanel } from "./components/StatusPanel";
-import { StudioPanel } from "./components/StudioPanel";
 import type {
   AppConfig,
   AppSettings,
@@ -39,7 +38,6 @@ import type {
   ReferenceFocus,
   ReferenceItem,
   ResizeFilter,
-  StudioStatus,
   SystemStatusResponse,
   TranslationPreview,
 } from "./types";
@@ -346,12 +344,7 @@ export default function App() {
   const [referenceUploading, setReferenceUploading] = useState(false);
   const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
   const [detailsJobId, setDetailsJobId] = useState<string | null>(null);
-  const [studioOpen, setStudioOpen] = useState(false);
   const [comicStudioOpen, setComicStudioOpen] = useState(false);
-  const [studioStatus, setStudioStatus] = useState<StudioStatus | null>(null);
-  const [studioError, setStudioError] = useState<string | null>(null);
-  const [studioStarting, setStudioStarting] = useState(false);
-  const [studioRefreshKey, setStudioRefreshKey] = useState(0);
 
   const activeNegative =
     page === "image"
@@ -1176,41 +1169,6 @@ export default function App() {
     }
   }, [page, config]);
 
-  const loadStudioStatus = useCallback(async () => {
-    try {
-      const next = await api.getStudioStatus();
-      setStudioStatus(next);
-      setStudioError(null);
-    } catch (cause) {
-      setStudioError(
-        cause instanceof Error ? cause.message : "작업실 상태를 확인하지 못했습니다.",
-      );
-    }
-  }, []);
-
-  const handleStartStudio = useCallback(async () => {
-    setStudioStarting(true);
-    setStudioError(null);
-    try {
-      const next = await api.startStudio();
-      setStudioStatus(next);
-      setStudioRefreshKey((key) => key + 1);
-    } catch (cause) {
-      setStudioError(
-        cause instanceof Error ? cause.message : "작업실을 시작하지 못했습니다.",
-      );
-    } finally {
-      setStudioStarting(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!studioOpen) return;
-    void loadStudioStatus();
-    const timer = window.setInterval(() => void loadStudioStatus(), 6000);
-    return () => window.clearInterval(timer);
-  }, [studioOpen, loadStudioStatus]);
-
   const handleSelectModel = useCallback(
     (model: ModelFile) => {
       const isReference = page === "reference";
@@ -1502,11 +1460,10 @@ export default function App() {
       <nav className="mode-tabs" aria-label="생성 모드">
         <button
           type="button"
-          className={`mode-tab ${page === "pixel" && !studioOpen ? "active" : ""}`}
-          aria-pressed={page === "pixel" && !studioOpen}
+          className={`mode-tab ${page === "pixel" && !comicStudioOpen ? "active" : ""}`}
+          aria-pressed={page === "pixel" && !comicStudioOpen}
           onClick={() => {
             setPage("pixel");
-            setStudioOpen(false);
             setComicStudioOpen(false);
           }}
         >
@@ -1521,11 +1478,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          className={`mode-tab ${page === "image" && !studioOpen ? "active" : ""}`}
-          aria-pressed={page === "image" && !studioOpen}
+          className={`mode-tab ${page === "image" && !comicStudioOpen ? "active" : ""}`}
+          aria-pressed={page === "image" && !comicStudioOpen}
           onClick={() => {
             setPage("image");
-            setStudioOpen(false);
             setComicStudioOpen(false);
           }}
         >
@@ -1540,11 +1496,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          className={`mode-tab ${page === "reference" && !studioOpen ? "active" : ""}`}
-          aria-pressed={page === "reference" && !studioOpen}
+          className={`mode-tab ${page === "reference" && !comicStudioOpen ? "active" : ""}`}
+          aria-pressed={page === "reference" && !comicStudioOpen}
           onClick={() => {
             setPage("reference");
-            setStudioOpen(false);
             setComicStudioOpen(false);
           }}
         >
@@ -1559,29 +1514,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          className={`mode-tab ${studioOpen ? "active" : ""}`}
-          aria-pressed={studioOpen}
-          onClick={() => {
-            setStudioOpen(true);
-            setComicStudioOpen(false);
-          }}
-        >
-          <span className="mode-tab-icon">
-            <StudioIcon size={19} />
-          </span>
-          <span className="mode-tab-copy">
-            <strong>만화 작업실</strong>
-            <small>nk 작업실 · 컷·페이지·작업 줄</small>
-          </span>
-          <span className="mode-tab-index">04</span>
-        </button>
-        <button
-          type="button"
           className={`mode-tab ${comicStudioOpen ? "active" : ""}`}
           aria-pressed={comicStudioOpen}
           onClick={() => {
             setComicStudioOpen(true);
-            setStudioOpen(false);
           }}
         >
           <span className="mode-tab-icon">
@@ -1591,7 +1527,7 @@ export default function App() {
             <strong>만화 스튜디오</strong>
             <small>콘티 · 후보 · 페이지 · 무검열 모델</small>
           </span>
-          <span className="mode-tab-index">05</span>
+          <span className="mode-tab-index">04</span>
         </button>
       </nav>
 
@@ -1610,21 +1546,7 @@ export default function App() {
         </div>
       )}
 
-      {studioOpen ? (
-        <main className="workspace studio-workspace">
-          <StudioPanel
-            status={studioStatus}
-            error={studioError}
-            starting={studioStarting}
-            refreshKey={studioRefreshKey}
-            onStart={() => void handleStartStudio()}
-            onRefresh={() => {
-              void loadStudioStatus();
-              setStudioRefreshKey((key) => key + 1);
-            }}
-          />
-        </main>
-      ) : comicStudioOpen ? (
+      {comicStudioOpen ? (
         <main className="workspace studio-workspace">
           <ComicStudioPanel models={health?.models.checkpoints ?? []} />
         </main>

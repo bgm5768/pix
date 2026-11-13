@@ -36,15 +36,8 @@ comfyui:
   # 기동 시 자동 생성되는 ComfyUI 추가 모델 경로 설정
   extra_model_paths_file: 'config/comfyui_model_paths.generated.yaml'
 
-# nk 만화 제작기(nk ep web) 를 픽셀포지 안 ��로 여는 설정.
-# studio.kit_path 에 nk.py 가 있는 폴더를 둔다. 같은 ComfyUI(http://127.0.0.1:8188)를 쓴다.
-studio:
-  kit_path: 'C:\nk'
-  port: 8766
-  python: ''           # 비우면 PATH 의 python 사용 (numpy/cv2/PIL/pyyaml 필요)
-
-# 5번째 탭의 NK 그대로 모드: safe 태그만 제거한 로컬 패치 복사본.
-# scripts/patch_nk_uncensored.py 가 nk_uncensored/ 를 만든다 (원본 C:\nk 는 그대로).
+# 4번째 탭의 NK 그대로 모드: safe 등급과 부정 안전 태그를 제거한 로컬 패치 복사본.
+# scripts/patch_nk_uncensored.py --standalone 이 nk_uncensored/ 를 만든다.
 studio_uncensored:
   kit_path: 'nk_uncensored'
   port: 8767
