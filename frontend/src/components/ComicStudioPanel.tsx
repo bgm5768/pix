@@ -110,7 +110,7 @@ function NkStudioFrame() {
         <span className="spinner" />
         <div>
           <strong>NK 무검열 작업실을 시작하는 중…</strong>
-          <span>nk 원본 런타임에서 safe 태그만 제거한 복사본을 띄웁니다.</span>
+          <span>nk 원본 런타임에서 safe 등급과 부정 안전 태그를 제거한 복사본을 띄웁니다.</span>
         </div>
       </div>
     );
@@ -668,7 +668,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
           <div>
             <span className="eyebrow">05 · COMIC STUDIO</span>
             <h2>
-              만화 스튜디오 <span className="comic-mode-badge">NK 그대로 · safe 제거</span>
+              만화 스튜디오 <span className="comic-mode-badge">NK 그대로 · safe·안전태그 제거</span>
             </h2>
           </div>
           <div className="studio-head-actions">
@@ -692,10 +692,10 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
 
         <div className="comic-mode-bar">
           <div>
-            <strong>NK 원본 작업실 + safe 제거</strong>
+            <strong>NK 원본 작업실 + safe·안전태그 제거</strong>
             <span>
               nk의 새 만화 · 콘티 컴파일 · 후보 생성 · 자동 검수 · 선택 · 글자/쪽 · 표지 ·
-              PDF 흐름을 그대로 씁니다. 프롬프트에서 safe 태그만 빠집니다.
+              PDF 흐름을 그대로 씁니다. 긍정의 safe 태그와 부정의 안전 태그가 빠집니다.
             </span>
           </div>
           <em>기존 nk 에피소드 공유</em>
@@ -707,8 +707,8 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
           <InfoIcon size={14} />
           <span>
             이 모드는 실제 nk 런타임을 실행합니다. 원본 nk는 수정하지 않고, 로컬 패치
-            복사본만 safe 태그를 제거합니다. 성인 캐릭터만 사용하고 실제 인물·미성년자는
-            넣지 마세요.
+            복사본만 긍정의 safe 태그와 부정의 안전 태그를 제거합니다. 성인 캐릭터만
+            사용하고 실제 인물·미성년자는 넣지 마세요.
           </span>
         </div>
       </section>

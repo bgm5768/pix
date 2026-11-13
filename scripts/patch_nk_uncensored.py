@@ -2,9 +2,10 @@
 
 The original nk installation is never modified.  This script copies the nk
 runtime files into ``nk_uncensored/`` (gitignored) and removes the ``safe``
-rating tag from the prompt builders.  Character files, drawing workflows,
-fonts, docs and episodes are shared with the original kit through directory
-junctions so existing comics keep working.
+rating tag from the prompt builders plus the minor-safety tags from the
+default negative prompt.  Character files, drawing workflows, fonts, docs and
+episodes are shared with the original kit through directory junctions so
+existing comics keep working.
 
 Usage:
     python scripts/patch_nk_uncensored.py [--source C:\\nk] [--dest ...]
@@ -89,6 +90,9 @@ JUNCTION_DIRS = (
 )
 
 SAFE_REPLACEMENTS: dict[str, list[tuple[str, str]]] = {
+    "presets.yaml": [
+        (", cub, young, child, loli, shota", ""),
+    ],
     "nk.py": [
         ('    rating = "safe"                  # ', '    rating = "nsfw"                  # '),
         ('    pos.append("safe")\n', '    # safe tag removed for the uncensored local runtime\n'),

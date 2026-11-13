@@ -627,9 +627,9 @@ nk의 실제 제작 흐름을 그대로 쓴다. nk 작업실(4번째 탭)과 같
 python scripts\patch_nk_uncensored.py
 ```
 
-> nk의 `safe` 태그와 QA 등급만 제거한 것이며, 그 외 안전장치(부정 프롬프트의
-> `young, child, loli, shota` 등)는 유지된다. 성인 캐릭터만 사용하고 실제 인물·
-> 미성년자는 넣지 않는다. 로컬 전용 기능이다.
+> nk의 `safe` 태그, QA 등급, 부정 프롬프트의 `cub, young, child, loli, shota`
+> 안전 태그를 제거한 것이다. 성인 캐릭터만 사용하고 실제 인물·미성년자는 넣지 않는다.
+> 로컬 전용 기능이다.
 
 #### 간편 모드
 
