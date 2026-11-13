@@ -888,6 +888,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     <select
                       value={genCount}
                       onChange={(event) => setGenCount(Number(event.target.value))}
+                      disabled={busy}
                     >
                       {[1, 2, 3, 4].map((value) => (
                         <option value={value} key={value}>
@@ -901,6 +902,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     <input
                       value={genSeeds}
                       onChange={(event) => setGenSeeds(event.target.value)}
+                      disabled={busy}
                       placeholder="비우면 랜덤, 예: 101,102"
                     />
                   </label>
@@ -909,6 +911,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     <input
                       value={genSteps}
                       onChange={(event) => setGenSteps(event.target.value)}
+                      disabled={busy}
                       placeholder="자동"
                     />
                   </label>
@@ -917,6 +920,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     <input
                       value={genCfg}
                       onChange={(event) => setGenCfg(event.target.value)}
+                      disabled={busy}
                       placeholder="자동"
                     />
                   </label>
@@ -925,6 +929,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                   className="comic-extra-input"
                   value={genExtra}
                   onChange={(event) => setGenExtra(event.target.value)}
+                  disabled={busy}
                   placeholder="추가 프롬프트 태그 (선택)"
                 />
               </div>
