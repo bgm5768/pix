@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import PROJECT_ROOT, get_settings
 from app.routes.api import router as api_router
-from app.routes.api import studio_router
+from app.routes.api import nk_studio_router, studio_router
 from app.services.comfy_client import ComfyClient
 from app.services.comfy_launcher import ComfyLauncher
 from app.services.errors import PixelForgeError
@@ -68,6 +68,13 @@ async def lifespan(app: FastAPI):
     downloads = ModelDownloadManager(settings, comfy)
     monitor = SystemMonitor()
     studio = StudioService(settings)
+    nk_studio = StudioService(
+        settings,
+        settings.studio_uncensored,
+        proxy_prefix="/nk-studio",
+        log_name="nk-studio-uncensored.log",
+        display_name="nk 무검열 작업실",
+    )
     comic = ComicService(settings)
     comic_studio = ComicStudioService(settings, comfy, comic)
 
@@ -79,6 +86,7 @@ async def lifespan(app: FastAPI):
     app.state.downloads = downloads
     app.state.monitor = monitor
     app.state.studio = studio
+    app.state.nk_studio = nk_studio
     app.state.comic = comic
     app.state.comic_studio = comic_studio
 
@@ -121,6 +129,7 @@ async def lifespan(app: FastAPI):
         await downloads.close()
         await comfy.close()
         await studio.stop()
+        await nk_studio.stop()
         launcher.shutdown()
         logger.info("PixelForge Local backend stopped")
 
@@ -157,6 +166,7 @@ async def private_network_access(request: Request, call_next):
 
 app.include_router(api_router)
 app.include_router(studio_router)
+app.include_router(nk_studio_router)
 
 outputs_root = PROJECT_ROOT / "outputs"
 outputs_root.mkdir(parents=True, exist_ok=True)
@@ -228,7 +238,7 @@ async def index():
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def spa_fallback(full_path: str):
-    if full_path.startswith(("api/", "files/", "studio/", "docs", "redoc", "openapi.json")):
+    if full_path.startswith(("api/", "files/", "studio/", "nk-studio/", "docs", "redoc", "openapi.json")):
         raise HTTPException(status_code=404, detail="Not found")
     dist = frontend_dist.resolve()
     candidate = (frontend_dist / full_path).resolve()

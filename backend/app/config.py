@@ -165,6 +165,13 @@ class StudioConfig(BaseModel):
     python: str = ""
 
 
+class NkUncensoredConfig(StudioConfig):
+    """A patched local nk runtime with the safe rating tag removed."""
+
+    kit_path: str = "nk_uncensored"
+    port: int = 8767
+
+
 class ComicStudioConfig(BaseModel):
     """Independent, uncensored comic workflow (5th tab)."""
 
@@ -185,6 +192,7 @@ class Settings(BaseModel):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
     studio: StudioConfig = Field(default_factory=StudioConfig)
+    studio_uncensored: NkUncensoredConfig = Field(default_factory=NkUncensoredConfig)
     comic_studio: ComicStudioConfig = Field(default_factory=ComicStudioConfig)
 
     def resolve(self, value: str | Path) -> Path:

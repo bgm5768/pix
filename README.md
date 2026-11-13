@@ -599,11 +599,42 @@ studio:
 > 작업실은 이 PC의 파일을 만들고 명령을 실행한다. 터널(외부 주소)로도 열 수 있지만
 > 그 주소를 아는 사람이 쓸 수 있으므로 개인용으로만 쓰는 게 좋다.
 
-### 4.5.2 만화 스튜디오 (5번째 탭 · nk와 별개)
+### 4.5.2 만화 스튜디오 (5번째 탭)
 
-5번째 탭 **만화 스튜디오**는 nk 코드를 쓰지 않고 같은 작업 흐름을 새로 구현한
-자체 만화 제작기다. nk 작업실(4번째 탭)은 그대로 두고, 두 탭이 같은 ComfyUI와
-공유 모델 폴더를 함께 쓴다.
+5번째 탭 **만화 스튜디오**는 두 가지 모드를 제공한다.
+
+#### NK 그대로 모드 (기본)
+
+nk의 실제 제작 흐름을 그대로 쓴다. nk 작업실(4번째 탭)과 같은 엔진이지만,
+5번째 탭은 **safe 등급만 제거한 로컬 패치 복사본**을 실행한다.
+
+- **흐름**: 새 만화 → 콘티 컴파일(`nk ep compile`) → 컷별 후보 생성
+  (`nk ep redo`) → 자동 검수(QA)·자동 수정 → 후보 선택 → 말풍선/글자
+  (`nk ep letter`) → 쪽 짜기(`nk ep layout`) → 표지(`nk ep cover`) →
+  리뷰 시트 → `book.pdf`. nk 작업실의 **`ep auto`** 한 번으로도 전체를 돌릴 수 있다.
+- **safe 제거**: 프롬프트 빌더의 `safe` 태그만 뺀다. nk의 캐릭터·워크플로·
+  폰트·문서·에피소드 폴더는 원본과 공유하므로 기존 만화가 그대로 보인다.
+- **원본 보존**: `C:\nk` 는 수정하지 않는다. `scripts/patch_nk_uncensored.py` 가
+  `nk_uncensored/` 에 런타임 복사본을 만들고, 그 안에서만 `safe` 를 제거한다.
+  `nk_uncensored/` 는 `.gitignore` 에 포함되어 저장소에 올라가지 않는다.
+- **포트**: 패치 복사본은 `8767`, 4번째 탭의 원본 작업실은 `8766` 을 쓴다.
+  PixelForge가 `/nk-studio/` 와 `/api/nk-studio/*` 로 프록시한다.
+- **설정**: `studio_uncensored.kit_path`(기본 `nk_uncensored`),
+  `studio_uncensored.port`(기본 `8767`).
+
+```bat
+:: 패치 복사본 만들기/갱신 (원본 nk는 건드리지 않음)
+python scripts\patch_nk_uncensored.py
+```
+
+> nk의 `safe` 태그와 QA 등급만 제거한 것이며, 그 외 안전장치(부정 프롬프트의
+> `young, child, loli, shota` 등)는 유지된다. 성인 캐릭터만 사용하고 실제 인물·
+> 미성년자는 넣지 않는다. 로컬 전용 기능이다.
+
+#### 간편 모드
+
+nk 코드를 쓰지 않고 같은 작업 흐름을 자체 구현한 모드다. 헤더의
+**「간편 모드」** 버튼으로 전환한다. 모드 선택은 브라우저에 기억된다.
 
 - **콘티 YAML → 컷**: `pages → cuts` 구조의 콘티를 저장하면 컷별 프롬프트·네거티브·
   크기·시드 설정이 만들어진다. `cast`, `characters`, `locations`, `outfits`,
@@ -612,9 +643,10 @@ studio:
   Pony는 score 태그, NoobAI/Illustrious는 aesthetic 태그, 포토리얼/LUSTIFY 계열은
   raw photo 태그를 기본 화풍으로 붙인다.
 - **후보 생성**: 컷마다 1~6장을 로컬 ComfyUI로 그려 `outputs/comic_studio/` 아래에
-  저장한다. 후보별 seed·모델·steps·CFG·프롬프트가 JSON 사이드카로 남는다.
-- **선택 → 페이지 → PDF**: 컷마다 최종 이미지를 고르면 `ComicService` 레이아웃으로
-  페이지를 조립하고, 프로젝트 전체를 PDF로 내보낼 수 있다.
+  저장한다. 「후보 일괄 생성」으로 모든 컷을 한 번에 그리고, 후보별
+  seed·모델·steps·CFG·프롬프트가 JSON 사이드카로 남는다.
+- **선택 → 페이지 → PDF**: 컷마다 최종 이미지를 직접 고른 뒤 페이지를 조립하고,
+  프로젝트 전체를 PDF로 내보낼 수 있다.
 - **캐릭터 라이브러리**: 내장 성인 캐릭터 6종 + 사용자 YAML 캐릭터. 사용자 캐릭터는
   `adult: true` 가 아니면 저장되지 않고, 미성년자로 해석될 수 있는 태그는 거부한다.
 - **설정**: `comic_studio.root_dir`(기본 `outputs/comic_studio`),
@@ -817,6 +849,10 @@ outputs/
 | POST | `/api/studio/draw-cut` | 고른 모델 워크플로로 컷 하나 그리기 (`nk ep flow try`) |
 | GET | `/api/studio/preview?path=...` | 그린 컷 이미지 미리보기 |
 | GET/POST | `/studio/...` | nk 작업실 화면·API 프록시 (작업실이 그대로 동작) |
+| GET | `/api/nk-studio/status` | safe 제거 nk 작업실(5번째 탭) 설치·실행 상태 |
+| POST | `/api/nk-studio/start` | safe 제거 nk 작업실 서버 기동 (포트 8767) |
+| POST | `/api/nk-studio/stop` | safe 제거 nk 작업실 서버 종료 |
+| GET/POST | `/nk-studio/...` | safe 제거 nk 작업실 화면·API 프록시 |
 | POST | `/api/comic/page` | 컷 + 말풍선으로 만화 페이지(PNG/PDF) 조립 |
 | GET | `/api/comic/pages` | 조립한 페이지 목록 |
 | GET | `/api/comic/page/{id}.pdf` | 페이지 PDF 다운로드 |
@@ -1235,9 +1271,12 @@ pix/
 │        ├─ model_downloads.py     # 모델 다운로드/이어받기/취소
 │        ├─ outputs.py             # 픽셀/이미지/레퍼런스 저장, 출력 목록, 다운로드/삭제
 │        ├─ references.py          # 참고 이미지 업로드·분석, 샘플 목록, IP-Adapter 상태 확인
-│        ├─ studio.py              # nk 작업실 기동 + /studio 프록시 + 모델 워크플로·컷 그리기
+│        ├─ studio.py              # nk 작업실 기동 + /studio·/nk-studio 프록시 + 모델 워크플로·컷 그리기
 │        ├─ comic.py               # 만화 페이지 조립(컷 배치 + 말풍선 + PDF)
 │        └─ errors.py              # 사용자 친화적 오류 타입
+├─ scripts/
+│  └─ patch_nk_uncensored.py        # nk 로컬 패치 복사본 생성(safe 제거, 원본 보존)
+├─ nk_uncensored/                   # 패치 복사본 (git 제외, patch 스크립트가 생성)
 ├─ config/
 │  ├─ settings.yaml                # 실행 설정 (translation 포함)
 │  └─ comfyui_model_paths.generated.yaml  # 자동 생성(ComfyUI 모델 경로)

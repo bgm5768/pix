@@ -19,20 +19,21 @@ from urllib.parse import quote
 
 import httpx
 
-from app.config import Settings
+from app.config import Settings, StudioConfig
 from app.services.errors import PixelForgeError
 
 logger = logging.getLogger("pixelforge.studio")
 
 # Paths inside the studio HTML that must point back through the proxy.
-_HTML_REWRITES = (
-    ('"/api/', '"/studio/api/'),
-    ('"/img?', '"/studio/img?'),
-    ('"/img"', '"/studio/img"'),
-    ('href="/label"', 'href="/studio/label"'),
-    ('href="/ab"', 'href="/studio/ab"'),
-    ('href="/"', 'href="/studio/"'),
-)
+def html_rewrites(prefix: str) -> tuple[tuple[str, str], ...]:
+    return (
+        ('"/api/', f'"{prefix}/api/'),
+        ('"/img?', f'"{prefix}/img?'),
+        ('"/img"', f'"{prefix}/img"'),
+        ('href="/label"', f'href="{prefix}/label"'),
+        ('href="/ab"', f'href="{prefix}/ab"'),
+        ('href="/"', f'href="{prefix}/"'),
+    )
 
 _FORWARD_HEADERS = (
     "x-nk-k",
@@ -82,8 +83,19 @@ class StudioService:
         "ace_step",
     )
 
-    def __init__(self, settings: Settings):
+    def __init__(
+        self,
+        settings: Settings,
+        config: StudioConfig | None = None,
+        proxy_prefix: str = "/studio",
+        log_name: str = "nk-studio.log",
+        display_name: str = "nk 작업실",
+    ):
         self.settings = settings
+        self.config = config or settings.studio
+        self.proxy_prefix = proxy_prefix.rstrip("/") or "/studio"
+        self.log_name = log_name
+        self.display_name = display_name
         self._process: subprocess.Popen[bytes] | None = None
         self._log_handle: Any = None
         self._lock = asyncio.Lock()
@@ -92,9 +104,11 @@ class StudioService:
     # ------------------------------------------------------------------ paths
     @property
     def kit_path(self) -> Path:
-        configured = self.settings.studio.kit_path
+        configured = self.config.kit_path
         if configured:
             candidate = Path(configured).expanduser()
+            if not candidate.is_absolute():
+                candidate = (self.settings.resolve(".") / candidate).resolve()
             if (candidate / "nk.py").is_file():
                 return candidate
         home = os.environ.get("NK_HOME")
@@ -138,10 +152,10 @@ class StudioService:
 
     @property
     def port(self) -> int:
-        return int(self.settings.studio.port)
+        return int(self.config.port)
 
     def python_executable(self) -> str:
-        configured = self.settings.studio.python
+        configured = self.config.python
         if configured:
             path = Path(configured).expanduser()
             if path.is_file():
@@ -163,7 +177,7 @@ class StudioService:
             "kit_path": str(self.kit_path),
             "running": self.is_running(),
             "port": self.port,
-            "url": "/studio/",
+            "url": f"{self.proxy_prefix}/",
             "python": self.python_executable(),
         }
 
@@ -191,7 +205,7 @@ class StudioService:
                 logger.info("Studio server already listening on port %s", self.port)
                 return True
 
-            log_path = self.settings.logs_dir / "nk-studio.log"
+            log_path = self.settings.logs_dir / self.log_name
             log_path.parent.mkdir(parents=True, exist_ok=True)
             self._log_handle = log_path.open("a", encoding="utf-8", errors="replace")
             self._log_handle.write(
@@ -227,7 +241,7 @@ class StudioService:
                 if self._process.poll() is not None:
                     self._process = None
                     raise StudioError(
-                        "nk 작업실을 시작하지 못했습니다. logs/nk-studio.log 를 확인해 주세요.",
+                        f"{self.display_name}을 시작하지 못했습니다. logs/{self.log_name} 를 확인해 주세요.",
                         detail=self._log_tail(),
                     )
                 if self._port_open(self.port):
@@ -235,12 +249,12 @@ class StudioService:
                     return True
                 await asyncio.sleep(0.5)
             raise StudioError(
-                "nk 작업실이 시간 안에 시작되지 않았습니다. logs/nk-studio.log 를 확인해 주세요.",
+                f"{self.display_name}이 시간 안에 시작되지 않았습니다. logs/{self.log_name} 를 확인해 주세요.",
                 detail=self._log_tail(),
             )
 
     def _log_tail(self, limit: int = 40) -> str:
-        path = self.settings.logs_dir / "nk-studio.log"
+        path = self.settings.logs_dir / self.log_name
         if not path.exists():
             return ""
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -613,9 +627,8 @@ class StudioService:
         return max(used, default=0) + 1
 
     # ------------------------------------------------------------------ proxy
-    @staticmethod
-    def rewrite_html(text: str) -> str:
-        for old, new in _HTML_REWRITES:
+    def rewrite_html(self, text: str) -> str:
+        for old, new in html_rewrites(self.proxy_prefix):
             text = text.replace(old, new)
         return text
 

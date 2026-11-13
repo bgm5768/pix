@@ -27,6 +27,10 @@ outputs/comic_studio/*
 logs/*
 !logs/.gitkeep
 
+# Local nk runtime patched for uncensored use (built by
+# scripts/patch_nk_uncensored.py; never commit third-party nk source)
+nk_uncensored/
+
 # Generated config
 config/comfyui_model_paths.generated.yaml
 

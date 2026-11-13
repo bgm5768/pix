@@ -60,6 +60,7 @@ from app.services.system_monitor import SystemMonitor
 
 router = APIRouter(prefix="/api", tags=["pixelforge"])
 studio_router = APIRouter(prefix="/studio", tags=["studio"])
+nk_studio_router = APIRouter(prefix="/nk-studio", tags=["nk-uncensored"])
 
 
 def _settings(request: Request) -> Settings:
@@ -84,6 +85,10 @@ def _monitor(request: Request) -> SystemMonitor:
 
 def _studio(request: Request) -> StudioService:
     return request.app.state.studio
+
+
+def _nk_studio(request: Request) -> StudioService:
+    return request.app.state.nk_studio
 
 
 def _comic(request: Request) -> ComicService:
@@ -400,6 +405,49 @@ async def studio_refresh_flows(request: Request) -> dict:
     studio = _studio(request)
     written = studio.refresh_model_flows()
     return {"items": written, "flow_dir": str(studio.flow_dir)}
+
+
+@router.get("/nk-studio/status")
+async def nk_studio_status(request: Request) -> dict:
+    return _nk_studio(request).status()
+
+
+@router.post("/nk-studio/start")
+async def nk_studio_start(request: Request) -> dict:
+    studio = _nk_studio(request)
+    await studio.ensure_running()
+    return studio.status()
+
+
+@router.post("/nk-studio/stop")
+async def nk_studio_stop(request: Request) -> dict:
+    studio = _nk_studio(request)
+    await studio.stop()
+    return studio.status()
+
+
+@nk_studio_router.api_route("/", methods=["GET", "POST", "HEAD"])
+async def nk_studio_root(request: Request) -> Response:
+    return await nk_studio_proxy("", request)
+
+
+@nk_studio_router.api_route("/{path:path}", methods=["GET", "POST", "HEAD"])
+async def nk_studio_proxy(path: str, request: Request) -> Response:
+    body = await request.body()
+    headers = {key: value for key, value in request.headers.items()}
+    status_code, content_type, payload = await _nk_studio(request).proxy(
+        request.method,
+        path,
+        request.url.query,
+        headers,
+        body,
+    )
+    return Response(
+        content=payload,
+        status_code=status_code,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @studio_router.api_route("/", methods=["GET", "POST", "HEAD"])
