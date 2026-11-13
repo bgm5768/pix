@@ -547,6 +547,121 @@ export interface StudioDrawResult {
   log: string;
 }
 
+export interface ComicStudioCharacter {
+  id: string;
+  name: string;
+  adult: boolean;
+  gender: string;
+  tags: string;
+  default_outfit: string;
+  negative: string;
+  description: string;
+  builtin?: boolean;
+}
+
+export interface ComicStudioCandidate {
+  name: string;
+  url: string;
+  seed: number;
+  model: string;
+  width: number;
+  height: number;
+  created_at: string;
+  elapsed?: number;
+  steps?: number;
+  cfg?: number;
+  prompt?: string;
+}
+
+export interface ComicStudioCut {
+  id: number;
+  key: string;
+  page: number;
+  index: number;
+  shot: string;
+  angle: string;
+  loc: string;
+  who: string[];
+  characters: string[];
+  action: string;
+  scene: string;
+  text: string;
+  position: "top" | "bottom" | "none";
+  width: number;
+  height: number;
+  prompt: string;
+  negative: string;
+  steps: number;
+  cfg: number;
+  candidates: ComicStudioCandidate[];
+  selected: string | null;
+  selected_url: string | null;
+}
+
+export interface ComicStudioPlanPage {
+  number: number;
+  note: string;
+  cut_ids: number[];
+}
+
+export interface ComicStudioPage {
+  id: string;
+  number: number;
+  note?: string;
+  layout: string;
+  width: number;
+  height: number;
+  title: string;
+  panel_count: number;
+  image_url: string;
+  pdf_url: string;
+  created_at?: string;
+}
+
+export interface ComicStudioProjectSummary {
+  id: string;
+  title: string;
+  model: string;
+  cut_count: number;
+  candidate_count: number;
+  picked_count: number;
+  page_count: number;
+  updated_at: string;
+  cover_url: string | null;
+  error: string | null;
+}
+
+export interface ComicStudioProject {
+  id: string;
+  title: string;
+  model: string;
+  plan_yaml: string;
+  created_at: string;
+  updated_at: string;
+  cuts: ComicStudioCut[];
+  pages: ComicStudioPage[];
+  plan_pages: ComicStudioPlanPage[];
+  warnings: string[];
+  error: string | null;
+  compiled: {
+    title: string;
+    style: string;
+    negative: string;
+    rating: string;
+    page_count: number;
+    cut_count: number;
+  };
+  characters: ComicStudioCharacter[];
+}
+
+export interface ComicStudioGenerateResult {
+  project_id: string;
+  cut: ComicStudioCut;
+  generated: ComicStudioCandidate[];
+  model: string;
+  log: string;
+}
+
 export interface AppSettings {
   mode: AssetMode;
   outputSize: OutputSize;

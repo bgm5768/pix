@@ -165,6 +165,18 @@ class StudioConfig(BaseModel):
     python: str = ""
 
 
+class ComicStudioConfig(BaseModel):
+    """Independent, uncensored comic workflow (5th tab)."""
+
+    root_dir: str = "outputs/comic_studio"
+    default_model: str = "lustifySDXLNSFWSFW_v20.safetensors"
+    # Fallback cut size when a plan does not specify width/height.
+    default_cut_size: tuple[int, int] = (832, 1216)
+    page_width: int = 1240
+    page_height: int = 1754
+    generation_timeout_seconds: int = 300
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     comfyui: ComfyConfig = Field(default_factory=ComfyConfig)
@@ -173,6 +185,7 @@ class Settings(BaseModel):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     jobs: JobsConfig = Field(default_factory=JobsConfig)
     studio: StudioConfig = Field(default_factory=StudioConfig)
+    comic_studio: ComicStudioConfig = Field(default_factory=ComicStudioConfig)
 
     def resolve(self, value: str | Path) -> Path:
         path = Path(value).expanduser()
@@ -239,6 +252,10 @@ class Settings(BaseModel):
     @property
     def comic_pages_dir(self) -> Path:
         return self.resolve(self.storage.comic_pages_dir)
+
+    @property
+    def comic_studio_dir(self) -> Path:
+        return self.resolve(self.comic_studio.root_dir)
 
     @property
     def logs_dir(self) -> Path:

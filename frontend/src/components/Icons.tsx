@@ -193,6 +193,16 @@ export function StudioIcon(props: IconProps) {
   );
 }
 
+export function BookIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13z" />
+      <path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20" />
+      <path d="M8 7h8M8 11h6" />
+    </svg>
+  );
+}
+
 export function PlayIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

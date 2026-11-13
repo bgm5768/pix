@@ -1,7 +1,13 @@
-import type {
+﻿import type {
   AppConfig,
   CancelResponse,
   ComicPageInfo,
+  ComicStudioCharacter,
+  ComicStudioCut,
+  ComicStudioGenerateResult,
+  ComicStudioPage,
+  ComicStudioProject,
+  ComicStudioProjectSummary,
   DeleteOutputResponse,
   GenerateRequest,
   GenerateResponse,
@@ -92,7 +98,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      "백엔드 서버에 연결할 수 없습니다. start.bat이 실행 중인지 확인해 주세요.",
+      "諛깆뿏???쒕쾭???곌껐?????놁뒿?덈떎. start.bat???ㅽ뻾 以묒씤吏 ?뺤씤??二쇱꽭??",
       0,
       "BACKEND_UNREACHABLE",
     );
@@ -113,7 +119,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const detail =
       typeof payload.detail === "string"
         ? payload.detail
-        : `요청이 실패했습니다. (HTTP ${response.status})`;
+        : `?붿껌???ㅽ뙣?덉뒿?덈떎. (HTTP ${response.status})`;
     throw new ApiError(detail, response.status, payload.code, payload.extra ?? null);
   }
   return data as T;
@@ -208,6 +214,121 @@ export const api = {
       `/api/comic/page/${encodeURIComponent(pageId)}`,
       { method: "DELETE" },
     ),
+  getComicStudioProjects: () =>
+    request<{ items: ComicStudioProjectSummary[] }>("/api/comic-studio/projects"),
+  createComicStudioProject: (payload: {
+    title: string;
+    model?: string;
+    plan_yaml?: string;
+  }) =>
+    request<ComicStudioProject>("/api/comic-studio/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getComicStudioProject: (projectId: string) =>
+    request<ComicStudioProject>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}`,
+    ),
+  updateComicStudioProject: (
+    projectId: string,
+    payload: { title?: string; model?: string; plan_yaml?: string },
+  ) =>
+    request<ComicStudioProject>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}`,
+      { method: "PUT", body: JSON.stringify(payload) },
+    ),
+  deleteComicStudioProject: (projectId: string) =>
+    request<{ id: string; deleted: boolean }>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}`,
+      { method: "DELETE" },
+    ),
+  compileComicStudioProject: (projectId: string) =>
+    request<{ id: string; cuts: number; pages: number; model: string; warnings: string[] }>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/compile`,
+      { method: "POST" },
+    ),
+  generateComicStudioCut: (
+    projectId: string,
+    cutId: number,
+    payload: {
+      seeds?: string;
+      count?: number;
+      model?: string;
+      steps?: number;
+      cfg?: number;
+      width?: number;
+      height?: number;
+      prompt_extra?: string;
+      negative_extra?: string;
+    },
+  ) =>
+    request<ComicStudioGenerateResult>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/cuts/${cutId}/generate`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+  pickComicStudioCandidate: (
+    projectId: string,
+    cutId: number,
+    candidate: string,
+  ) =>
+    request<ComicStudioCut>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/cuts/${cutId}/pick`,
+      { method: "POST", body: JSON.stringify({ candidate }) },
+    ),
+  clearComicStudioPick: (projectId: string, cutId: number) =>
+    request<ComicStudioCut>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/cuts/${cutId}/clear-pick`,
+      { method: "POST" },
+    ),
+  deleteComicStudioCandidate: (
+    projectId: string,
+    cutId: number,
+    candidate: string,
+  ) =>
+    request<ComicStudioCut>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/cuts/${cutId}/candidates/${encodeURIComponent(candidate)}`,
+      { method: "DELETE" },
+    ),
+  buildComicStudioPage: (
+    projectId: string,
+    payload: {
+      page: number;
+      layout?: string;
+      width?: number;
+      height?: number;
+      title?: string;
+    },
+  ) =>
+    request<ComicStudioPage>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/pages`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+  deleteComicStudioPage: (projectId: string, pageNumber: number) =>
+    request<{ id: string; page: number; deleted: boolean }>(
+      `/api/comic-studio/projects/${encodeURIComponent(projectId)}/pages/${pageNumber}`,
+      { method: "DELETE" },
+    ),
+  getComicStudioCharacters: () =>
+    request<{ items: ComicStudioCharacter[] }>("/api/comic-studio/characters"),
+  saveComicStudioCharacter: (payload: {
+    id: string;
+    name: string;
+    adult: boolean;
+    gender: string;
+    tags: string;
+    default_outfit: string;
+    negative: string;
+    description: string;
+  }) =>
+    request<ComicStudioCharacter>("/api/comic-studio/characters", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteComicStudioCharacter: (characterId: string) =>
+    request<{ id: string; deleted: boolean }>(
+      `/api/comic-studio/characters/${encodeURIComponent(characterId)}`,
+      { method: "DELETE" },
+    ),
   uploadReference: async (file: File): Promise<ReferenceAsset> => {    const form = new FormData();
     form.append("file", file, file.name);
     let response: Response;
@@ -218,7 +339,7 @@ export const api = {
       });
     } catch {
       throw new ApiError(
-        "백엔드 서버에 연결할 수 없습니다. start.bat이 실행 중인지 확인해 주세요.",
+        "諛깆뿏???쒕쾭???곌껐?????놁뒿?덈떎. start.bat???ㅽ뻾 以묒씤吏 ?뺤씤??二쇱꽭??",
         0,
         "BACKEND_UNREACHABLE",
       );
@@ -237,7 +358,7 @@ export const api = {
       const detail =
         typeof payload.detail === "string"
           ? payload.detail
-          : `업로드에 실패했습니다. (HTTP ${response.status})`;
+          : `?낅줈?쒖뿉 ?ㅽ뙣?덉뒿?덈떎. (HTTP ${response.status})`;
       throw new ApiError(detail, response.status, payload.code, payload.extra ?? null);
     }
     return data as ReferenceAsset;
@@ -260,3 +381,4 @@ export function assetUrl(path: string | null | undefined): string {
   }
   return `${getApiBase()}${path.startsWith("/") ? path : `/${path}`}`;
 }
+

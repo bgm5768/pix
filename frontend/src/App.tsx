@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import { ComicCuts } from "./components/ComicCuts";
 import { ComicPagePanel } from "./components/ComicPagePanel";
+import { ComicStudioPanel } from "./components/ComicStudioPanel";
 import { Gallery } from "./components/Gallery";
 import { Header } from "./components/Header";
 import { BackendOverride } from "./components/BackendOverride";
 import { JobList } from "./components/JobList";
-import { ImageIcon, PaletteIcon, SparkIcon, StudioIcon } from "./components/Icons";
+import { BookIcon, ImageIcon, PaletteIcon, SparkIcon, StudioIcon } from "./components/Icons";
 import { ModelPicker } from "./components/ModelPicker";
 import { PromptPanel } from "./components/PromptPanel";
 import { ReferencePanel } from "./components/ReferencePanel";
@@ -346,6 +347,7 @@ export default function App() {
   const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
   const [detailsJobId, setDetailsJobId] = useState<string | null>(null);
   const [studioOpen, setStudioOpen] = useState(false);
+  const [comicStudioOpen, setComicStudioOpen] = useState(false);
   const [studioStatus, setStudioStatus] = useState<StudioStatus | null>(null);
   const [studioError, setStudioError] = useState<string | null>(null);
   const [studioStarting, setStudioStarting] = useState(false);
@@ -1485,7 +1487,7 @@ export default function App() {
       <Header
         health={health}
         healthError={healthError}
-        job={jobs[page]}
+        job={comicStudioOpen ? null : jobs[page]}
         checkpoint={headerCheckpoint}
         lora={headerLora}
       />
@@ -1505,6 +1507,7 @@ export default function App() {
           onClick={() => {
             setPage("pixel");
             setStudioOpen(false);
+            setComicStudioOpen(false);
           }}
         >
           <span className="mode-tab-icon">
@@ -1523,6 +1526,7 @@ export default function App() {
           onClick={() => {
             setPage("image");
             setStudioOpen(false);
+            setComicStudioOpen(false);
           }}
         >
           <span className="mode-tab-icon">
@@ -1541,6 +1545,7 @@ export default function App() {
           onClick={() => {
             setPage("reference");
             setStudioOpen(false);
+            setComicStudioOpen(false);
           }}
         >
           <span className="mode-tab-icon">
@@ -1556,7 +1561,10 @@ export default function App() {
           type="button"
           className={`mode-tab ${studioOpen ? "active" : ""}`}
           aria-pressed={studioOpen}
-          onClick={() => setStudioOpen(true)}
+          onClick={() => {
+            setStudioOpen(true);
+            setComicStudioOpen(false);
+          }}
         >
           <span className="mode-tab-icon">
             <StudioIcon size={19} />
@@ -1566,6 +1574,24 @@ export default function App() {
             <small>nk 작업실 · 컷·페이지·작업 줄</small>
           </span>
           <span className="mode-tab-index">04</span>
+        </button>
+        <button
+          type="button"
+          className={`mode-tab ${comicStudioOpen ? "active" : ""}`}
+          aria-pressed={comicStudioOpen}
+          onClick={() => {
+            setComicStudioOpen(true);
+            setStudioOpen(false);
+          }}
+        >
+          <span className="mode-tab-icon">
+            <BookIcon size={19} />
+          </span>
+          <span className="mode-tab-copy">
+            <strong>만화 스튜디오</strong>
+            <small>콘티 · 후보 · 페이지 · 무검열 모델</small>
+          </span>
+          <span className="mode-tab-index">05</span>
         </button>
       </nav>
 
@@ -1597,6 +1623,10 @@ export default function App() {
               setStudioRefreshKey((key) => key + 1);
             }}
           />
+        </main>
+      ) : comicStudioOpen ? (
+        <main className="workspace studio-workspace">
+          <ComicStudioPanel models={health?.models.checkpoints ?? []} />
         </main>
       ) : (
       <main className="workspace">

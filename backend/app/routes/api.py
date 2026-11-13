@@ -10,6 +10,14 @@ from fastapi.responses import FileResponse, Response
 from typing import Any
 
 from app.config import Settings
+from app.schemas.comic_studio import (
+    ComicStudioCharacterInput,
+    ComicStudioGenerateRequest,
+    ComicStudioPageRequest,
+    ComicStudioPickRequest,
+    ComicStudioProjectCreate,
+    ComicStudioProjectUpdate,
+)
 from app.schemas.models import (
     CancelResponse,
     ComfyStatus,
@@ -46,6 +54,7 @@ from app.services.references import (
     save_reference_upload,
 )
 from app.services.comic import ComicError, ComicService
+from app.services.comic_studio import ComicStudioError, ComicStudioService
 from app.services.studio import StudioError, StudioService
 from app.services.system_monitor import SystemMonitor
 
@@ -79,6 +88,10 @@ def _studio(request: Request) -> StudioService:
 
 def _comic(request: Request) -> ComicService:
     return request.app.state.comic
+
+
+def _comic_studio(request: Request) -> ComicStudioService:
+    return request.app.state.comic_studio
 
 
 @router.post("/comic/page")
@@ -133,6 +146,151 @@ async def delete_comic_page(page_id: str, request: Request) -> dict:
     if not removed:
         raise ComicError("페이지를 찾지 못했습니다.")
     return {"id": page_id, "deleted": removed}
+
+
+# ---------------------------------------------------------------------------
+# Independent comic studio (5th tab).  It does not call or import nk.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/comic-studio/projects")
+async def comic_studio_projects(request: Request) -> dict:
+    return {"items": _comic_studio(request).list_projects()}
+
+
+@router.post("/comic-studio/projects")
+async def comic_studio_create_project(
+    payload: ComicStudioProjectCreate, request: Request
+) -> dict:
+    return _comic_studio(request).create_project(
+        payload.title, payload.model, payload.plan_yaml
+    )
+
+
+@router.get("/comic-studio/characters")
+async def comic_studio_characters(request: Request) -> dict:
+    return {"items": _comic_studio(request).list_characters()}
+
+
+@router.post("/comic-studio/characters")
+async def comic_studio_save_character(
+    payload: ComicStudioCharacterInput, request: Request
+) -> dict:
+    return _comic_studio(request).save_character(payload.model_dump())
+
+
+@router.delete("/comic-studio/characters/{character_id}")
+async def comic_studio_delete_character(character_id: str, request: Request) -> dict:
+    return _comic_studio(request).delete_character(character_id)
+
+
+@router.get("/comic-studio/projects/{project_id}")
+async def comic_studio_project(project_id: str, request: Request) -> dict:
+    return _comic_studio(request).project_detail(project_id)
+
+
+@router.put("/comic-studio/projects/{project_id}")
+async def comic_studio_update_project(
+    project_id: str, payload: ComicStudioProjectUpdate, request: Request
+) -> dict:
+    return _comic_studio(request).update_project(project_id, payload.model_dump(exclude_unset=True))
+
+
+@router.delete("/comic-studio/projects/{project_id}")
+async def comic_studio_delete_project(project_id: str, request: Request) -> dict:
+    return _comic_studio(request).delete_project(project_id)
+
+
+@router.post("/comic-studio/projects/{project_id}/compile")
+async def comic_studio_compile(project_id: str, request: Request) -> dict:
+    return _comic_studio(request).compile_project(project_id)
+
+
+@router.post("/comic-studio/projects/{project_id}/cuts/{cut_id}/generate")
+async def comic_studio_generate_cut(
+    project_id: str,
+    cut_id: int,
+    payload: ComicStudioGenerateRequest,
+    request: Request,
+) -> dict:
+    return await _comic_studio(request).generate_cut(
+        project_id,
+        cut_id,
+        seeds=payload.seeds,
+        count=payload.count,
+        model=payload.model,
+        steps=payload.steps,
+        cfg=payload.cfg,
+        width=payload.width,
+        height=payload.height,
+        negative_extra=payload.negative_extra,
+        prompt_extra=payload.prompt_extra,
+        sampler=payload.sampler,
+        scheduler=payload.scheduler,
+    )
+
+
+@router.post("/comic-studio/projects/{project_id}/cuts/{cut_id}/pick")
+async def comic_studio_pick_candidate(
+    project_id: str,
+    cut_id: int,
+    payload: ComicStudioPickRequest,
+    request: Request,
+) -> dict:
+    return _comic_studio(request).pick_candidate(project_id, cut_id, payload.candidate)
+
+
+@router.post("/comic-studio/projects/{project_id}/cuts/{cut_id}/clear-pick")
+async def comic_studio_clear_pick(project_id: str, cut_id: int, request: Request) -> dict:
+    return _comic_studio(request).clear_pick(project_id, cut_id)
+
+
+@router.delete(
+    "/comic-studio/projects/{project_id}/cuts/{cut_id}/candidates/{candidate}"
+)
+async def comic_studio_delete_candidate(
+    project_id: str, cut_id: int, candidate: str, request: Request
+) -> dict:
+    return _comic_studio(request).delete_candidate(project_id, cut_id, candidate)
+
+
+@router.post("/comic-studio/projects/{project_id}/pages")
+async def comic_studio_build_page(
+    project_id: str, payload: ComicStudioPageRequest, request: Request
+) -> dict:
+    return _comic_studio(request).build_page(
+        project_id,
+        payload.page,
+        layout=payload.layout,
+        width=payload.width,
+        height=payload.height,
+        title=payload.title,
+    )
+
+
+@router.delete("/comic-studio/projects/{project_id}/pages/{page_number}")
+async def comic_studio_delete_page(
+    project_id: str, page_number: int, request: Request
+) -> dict:
+    return _comic_studio(request).delete_page(project_id, page_number)
+
+
+@router.get("/comic-studio/projects/{project_id}/export.pdf")
+async def comic_studio_export_pdf(project_id: str, request: Request) -> FileResponse:
+    path = _comic_studio(request).export_pdf(project_id)
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"pixelforge_comic_{project_id}.pdf",
+    )
+
+
+@router.get("/comic-studio/projects/{project_id}/file/{file_path:path}")
+async def comic_studio_file(
+    project_id: str, file_path: str, request: Request
+) -> FileResponse:
+    path, media_type = _comic_studio(request).resolve_asset(project_id, file_path)
+    return FileResponse(path, media_type=media_type)
 
 
 def _resolve_output_path(settings: Settings, source: str) -> Path | None:

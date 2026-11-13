@@ -22,6 +22,7 @@ outputs/crops/*
 outputs/candidates/*
 outputs/references/*
 outputs/comic_pages/*
+outputs/comic_studio/*
 !outputs/**/.gitkeep
 logs/*
 !logs/.gitkeep
