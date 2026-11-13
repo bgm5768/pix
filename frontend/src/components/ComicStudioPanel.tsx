@@ -94,6 +94,18 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
   const [genExtra, setGenExtra] = useState("");
   const [generatingCutId, setGeneratingCutId] = useState<number | null>(null);
   const [pickingCutId, setPickingCutId] = useState<number | null>(null);
+  const [batchDrawing, setBatchDrawing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{
+    done: number;
+    total: number;
+    cutId: number;
+  } | null>(null);
+  const [assemblingAll, setAssemblingAll] = useState(false);
+  const [assembleProgress, setAssembleProgress] = useState<{
+    done: number;
+    total: number;
+    page: number;
+  } | null>(null);
 
   const [layouts, setLayouts] = useState<Record<number, string>>({});
   const [buildingPage, setBuildingPage] = useState<number | null>(null);
@@ -266,20 +278,26 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
     );
   };
 
+  const generationPayload = () => ({
+    seeds: genSeeds.trim() || undefined,
+    count: genCount,
+    model: editorModel || project?.model || undefined,
+    steps: genSteps.trim() ? Number(genSteps) : undefined,
+    cfg: genCfg.trim() ? Number(genCfg) : undefined,
+    prompt_extra: genExtra.trim() || undefined,
+  });
+
   const generateCut = async (cut: ComicStudioCut) => {
     if (!project || generatingCutId !== null) return;
     setGeneratingCutId(cut.id);
     setActionError(null);
     setNotice(null);
     try {
-      const result = await api.generateComicStudioCut(project.id, cut.id, {
-        seeds: genSeeds.trim() || undefined,
-        count: genCount,
-        model: editorModel || project.model || undefined,
-        steps: genSteps.trim() ? Number(genSteps) : undefined,
-        cfg: genCfg.trim() ? Number(genCfg) : undefined,
-        prompt_extra: genExtra.trim() || undefined,
-      });
+      const result = await api.generateComicStudioCut(
+        project.id,
+        cut.id,
+        generationPayload(),
+      );
       updateCut(result.cut);
       setNotice(
         `${cut.id}번 컷에 ${result.generated.length}장을 추가했습니다. ` +
@@ -290,6 +308,55 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
       setActionError(cause instanceof Error ? cause.message : "컷을 그리지 못했습니다.");
     } finally {
       setGeneratingCutId(null);
+    }
+  };
+
+  const generateAllCuts = async () => {
+    if (!project || batchDrawing || generatingCutId !== null || assemblingAll) return;
+    if (project.error) {
+      setActionError(`콘티 오류를 먼저 고쳐 주세요. ${project.error}`);
+      return;
+    }
+    const cuts = project.cuts;
+    if (cuts.length === 0) {
+      setActionError("컴파일된 컷이 없습니다. 콘티를 먼저 저장·컴파일해 주세요.");
+      return;
+    }
+    setBatchDrawing(true);
+    setActionError(null);
+    setNotice(null);
+    let produced = 0;
+    try {
+      for (const [index, cut] of cuts.entries()) {
+        setBatchProgress({ done: index, total: cuts.length, cutId: cut.id });
+        const result = await api.generateComicStudioCut(
+          project.id,
+          cut.id,
+          generationPayload(),
+        );
+        updateCut(result.cut);
+        produced += result.generated.length;
+      }
+      setBatchProgress({ done: cuts.length, total: cuts.length, cutId: 0 });
+      const detail = await api.getComicStudioProject(project.id);
+      setProject(detail);
+      const missing = detail.cuts.filter((cut) => !cut.selected).length;
+      setNotice(
+        `${cuts.length}컷에 후보 ${produced}장을 만들었습니다. ` +
+          (missing > 0
+            ? `컷마다 후보를 골라 주세요. 아직 ${missing}컷이 선택 전입니다.`
+            : "모든 컷이 선택되었습니다. 「전체 페이지 조립」을 누르세요."),
+      );
+      await loadProjects(project.id);
+    } catch (cause) {
+      setActionError(
+        `한번에 만들기가 중간에 멈췄습니다. ${
+          cause instanceof Error ? cause.message : "컷을 그리지 못했습니다."
+        }`,
+      );
+    } finally {
+      setBatchDrawing(false);
+      setBatchProgress(null);
     }
   };
 
@@ -337,7 +404,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
   };
 
   const buildPage = async (pageNumber: number) => {
-    if (!project || buildingPage !== null) return;
+    if (!project || buildingPage !== null || assemblingAll || batchDrawing) return;
     setBuildingPage(pageNumber);
     setActionError(null);
     setNotice(null);
@@ -367,6 +434,77 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
       setActionError(cause instanceof Error ? cause.message : "페이지를 조립하지 못했습니다.");
     } finally {
       setBuildingPage(null);
+    }
+  };
+
+  const assembleAllPages = async () => {
+    if (!project || assemblingAll || buildingPage !== null || batchDrawing) return;
+    const planPages = project.plan_pages;
+    if (planPages.length === 0) {
+      setActionError("컴파일된 페이지가 없습니다. 콘티를 먼저 저장·컴파일해 주세요.");
+      return;
+    }
+    const selected = new Map(project.cuts.map((cut) => [cut.id, cut.selected]));
+    const missing: number[] = [];
+    for (const page of planPages) {
+      for (const cutId of page.cut_ids) {
+        if (!selected.get(cutId)) missing.push(cutId);
+      }
+    }
+    if (missing.length > 0) {
+      const unique = [...new Set(missing)];
+      setActionError(
+        `컷 ${unique.join(", ")} 의 최종 이미지가 아직 없습니다. ` +
+          "컷마다 후보를 하나씩 고른 뒤 다시 눌러 주세요.",
+      );
+      return;
+    }
+    setAssemblingAll(true);
+    setActionError(null);
+    setNotice(null);
+    let built = 0;
+    try {
+      for (const [index, page] of planPages.entries()) {
+        setAssembleProgress({
+          done: index,
+          total: planPages.length,
+          page: page.number,
+        });
+        const result = await api.buildComicStudioPage(project.id, {
+          page: page.number,
+          layout: layouts[page.number] || undefined,
+          width: 1240,
+          height: 1754,
+          title: editorTitle || project.title,
+        });
+        setProject((current) =>
+          current
+            ? {
+                ...current,
+                pages: [
+                  ...current.pages.filter((item) => item.number !== page.number),
+                  result,
+                ].sort((a, b) => a.number - b.number),
+              }
+            : current,
+        );
+        built += 1;
+      }
+      const detail = await api.getComicStudioProject(project.id);
+      setProject(detail);
+      setNotice(
+        `${built}페이지 만화를 조립했습니다. 「전체 PDF」로 내려받거나 페이지별 PDF를 열 수 있습니다.`,
+      );
+      await loadProjects(project.id);
+    } catch (cause) {
+      setActionError(
+        `전체 페이지 조립이 중간에 멈췄습니다. ${
+          cause instanceof Error ? cause.message : "페이지를 조립하지 못했습니다."
+        }`,
+      );
+    } finally {
+      setAssemblingAll(false);
+      setAssembleProgress(null);
     }
   };
 
@@ -439,7 +577,11 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
   const candidateCount =
     project?.cuts.reduce((total, cut) => total + cut.candidates.length, 0) ?? 0;
   const pageCount = project?.pages.length ?? 0;
-  const busy = generatingCutId !== null || pickingCutId !== null;
+  const busy =
+    batchDrawing ||
+    assemblingAll ||
+    generatingCutId !== null ||
+    pickingCutId !== null;
 
   return (
     <section className="panel studio-panel comic-studio-panel">
@@ -460,6 +602,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
               if (selectedId) void loadProject(selectedId);
             }}
             title="새로고침"
+            disabled={busy}
           >
             <RefreshIcon size={14} />
           </button>
@@ -470,9 +613,10 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
         <InfoIcon size={14} />
         <span>
           nk와 별개로 동작하는 자체 만화 제작기입니다. 콘티 YAML을 컴파일해 컷 프롬프트를
-          만들고, 로컬 ComfyUI에서 후보를 뽑은 뒤 골라서 페이지·PDF로 묶습니다.
-          <strong> 프롬프트에 safe 태그를 자동으로 넣지 않습니다.</strong> 성인 캐릭터만
-          사용하고, 실제 인물·미성년자는 넣지 마세요.
+          만들고, 로컬 ComfyUI에서 후보를 뽑은 뒤 골라서 페이지·PDF로 묶습니다.{" "}
+          <strong>「한번에 만들기」로 모든 컷 후보를 한 번에 생성하고, 후보를 고른 뒤
+          「전체 페이지 조립」을 누르면 됩니다.</strong> 프롬프트에 safe 태그를 자동으로
+          넣지 않습니다. 성인 캐릭터만 사용하고, 실제 인물·미성년자는 넣지 마세요.
         </span>
       </div>
 
@@ -498,7 +642,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
               type="button"
               className="btn btn-primary btn-small"
               onClick={() => void createProject()}
-              disabled={creating || !newTitle.trim()}
+              disabled={creating || !newTitle.trim() || busy}
             >
               {creating ? <span className="spinner" /> : <SparkIcon size={13} />} 새 만화
             </button>
@@ -514,6 +658,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                 key={item.id}
                 className={`comic-project-item ${selectedId === item.id ? "is-selected" : ""}`}
                 onClick={() => setSelectedId(item.id)}
+                disabled={busy}
               >
                 <span className="comic-project-cover">
                   {item.cover_url ? (
@@ -604,7 +749,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     type="button"
                     className="btn btn-primary btn-small"
                     onClick={() => void saveProject()}
-                    disabled={saving}
+                    disabled={saving || busy}
                   >
                     {saving ? <span className="spinner" /> : <CheckIcon size={13} />} 저장 + 컴파일
                   </button>
@@ -612,7 +757,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     type="button"
                     className="btn btn-small"
                     onClick={() => void compileProject()}
-                    disabled={compiling}
+                    disabled={compiling || busy}
                   >
                     {compiling ? <span className="spinner" /> : <PlayIcon size={13} />} 컴파일
                   </button>
@@ -621,7 +766,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                     className="icon-button"
                     title="프로젝트 삭제"
                     onClick={() => void deleteProject()}
-                    disabled={deleting}
+                    disabled={deleting || busy}
                   >
                     <TrashIcon size={14} />
                   </button>
@@ -635,6 +780,69 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                 <span>{pageCount}페이지</span>
                 <span>{project.plan_pages.length}계획 페이지</span>
               </div>
+
+              <div className="comic-batch">
+                <div className="comic-batch-copy">
+                  <strong>한번에 만들기</strong>
+                  <span>후보 일괄 생성 → 컷별 후보 선택 → 전체 페이지 조립</span>
+                  <em>
+                    {pickedCount}/{project.cuts.length}컷 선택
+                  </em>
+                </div>
+                <div className="comic-batch-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-small"
+                    onClick={() => void generateAllCuts()}
+                    disabled={busy || project.cuts.length === 0}
+                  >
+                    {batchDrawing ? <span className="spinner" /> : <SparkIcon size={13} />}
+                    {batchDrawing && batchProgress
+                      ? `후보 생성 중 ${batchProgress.done + 1}/${batchProgress.total}`
+                      : `후보 일괄 생성 (${project.cuts.length}컷 × ${genCount}장)`}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    onClick={() => void assembleAllPages()}
+                    disabled={busy}
+                  >
+                    {assemblingAll ? <span className="spinner" /> : <ImageIcon size={13} />}
+                    전체 페이지 조립
+                  </button>
+                </div>
+              </div>
+
+              {batchDrawing && batchProgress && (
+                <div className="comic-batch-progress">
+                  <span
+                    style={{
+                      width: `${Math.round(
+                        ((batchProgress.done + 1) / batchProgress.total) * 100,
+                      )}%`,
+                    }}
+                  />
+                  <em>
+                    {batchProgress.done + 1}/{batchProgress.total}컷 · #
+                    {batchProgress.cutId} 그리는 중
+                  </em>
+                </div>
+              )}
+              {assemblingAll && assembleProgress && (
+                <div className="comic-batch-progress is-page">
+                  <span
+                    style={{
+                      width: `${Math.round(
+                        ((assembleProgress.done + 1) / assembleProgress.total) * 100,
+                      )}%`,
+                    }}
+                  />
+                  <em>
+                    {assembleProgress.done + 1}/{assembleProgress.total}페이지 ·{" "}
+                    {assembleProgress.page}페이지 조립 중
+                  </em>
+                </div>
+              )}
 
               <div className="comic-plan">
                 <div className="comic-plan-head">
@@ -808,7 +1016,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                             type="button"
                             className="btn btn-primary btn-small"
                             onClick={() => void buildPage(page.number)}
-                            disabled={buildingPage !== null}
+                            disabled={buildingPage !== null || assemblingAll || batchDrawing}
                           >
                             {buildingPage === page.number ? (
                               <span className="spinner" />
@@ -831,6 +1039,7 @@ export function ComicStudioPanel({ models }: ComicStudioPanelProps) {
                                 type="button"
                                 className="text-button is-danger"
                                 onClick={() => void deletePage(page.number)}
+                                disabled={assemblingAll || batchDrawing}
                               >
                                 삭제
                               </button>

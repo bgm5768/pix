@@ -5257,6 +5257,100 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 999px;
 }
 
+.comic-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(
+    120deg,
+    rgba(125, 255, 178, 0.07),
+    rgba(125, 255, 178, 0.015) 60%
+  );
+  border: 1px solid rgba(125, 255, 178, 0.28);
+  border-radius: 12px;
+}
+
+.comic-batch-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.comic-batch-copy strong {
+  color: var(--accent);
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+}
+
+.comic-batch-copy span {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.comic-batch-copy em {
+  padding: 2px 7px;
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-style: normal;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+}
+
+.comic-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.comic-batch-progress {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+}
+
+.comic-batch-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(125, 255, 178, 0.32),
+    rgba(125, 255, 178, 0.1)
+  );
+  transition: width 0.4s ease;
+}
+
+.comic-batch-progress.is-page span {
+  background: linear-gradient(
+    90deg,
+    rgba(122, 168, 255, 0.32),
+    rgba(122, 168, 255, 0.1)
+  );
+}
+
+.comic-batch-progress em {
+  position: relative;
+  padding-left: 12px;
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-style: normal;
+}
+
 .comic-plan {
   display: flex;
   flex-direction: column;
